@@ -1,0 +1,170 @@
+import { pgTable, serial, text, integer, boolean, decimal, bigint, timestamp, foreignKey } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+
+// ─── ENUMS ───────────────────────────────────────────────────────────────────
+
+export const races = ["human", "elf", "dwarf", "orc"] as const;
+export type Race = (typeof races)[number];
+
+export const classes = ["warrior", "mage", "archer", "assassin"] as const;
+export type Class = (typeof classes)[number];
+
+export const equipmentSlots = ["weapon", "head", "chest", "legs", "feet", "accessory"] as const;
+export type EquipmentSlot = (typeof equipmentSlots)[number];
+
+export const armorTypes = ["cloth", "leather", "plate", "weapon"] as const;
+export type ArmorType = (typeof armorTypes)[number];
+
+// ─── LOCATIONS ───────────────────────────────────────────────────────────────
+
+export const locations = pgTable("locations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  requiredLevel: integer("required_level").notNull().default(1),
+  orderIndex: integer("order_index").notNull().default(0),
+});
+
+export const insertLocationSchema = createInsertSchema(locations).omit({ id: true });
+export type InsertLocation = z.infer<typeof insertLocationSchema>;
+export type Location = typeof locations.$inferSelect;
+
+// ─── EQUIPMENT ITEMS ─────────────────────────────────────────────────────────
+
+export const equipmentItems = pgTable("equipment_items", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  slot: text("slot", { enum: equipmentSlots }).notNull(),
+  armorType: text("armor_type", { enum: armorTypes }).notNull(),
+  requiredLevel: integer("required_level").notNull().default(1),
+  requiredClass: text("required_class", { enum: classes }),
+  bonusStrength: integer("bonus_strength").notNull().default(0),
+  bonusAgility: integer("bonus_agility").notNull().default(0),
+  bonusIntelligence: integer("bonus_intelligence").notNull().default(0),
+  bonusVitality: integer("bonus_vitality").notNull().default(0),
+  bonusHp: integer("bonus_hp").notNull().default(0),
+  bonusAttack: integer("bonus_attack").notNull().default(0),
+  bonusDefense: integer("bonus_defense").notNull().default(0),
+  price: integer("price").notNull().default(0),
+  isShopItem: boolean("is_shop_item").notNull().default(false),
+  description: text("description").notNull().default(""),
+});
+
+export const insertEquipmentSchema = createInsertSchema(equipmentItems).omit({ id: true });
+export type InsertEquipment = z.infer<typeof insertEquipmentSchema>;
+export type EquipmentItem = typeof equipmentItems.$inferSelect;
+
+// ─── PLAYERS ─────────────────────────────────────────────────────────────────
+
+export const players = pgTable("players", {
+  id: serial("id").primaryKey(),
+  telegramId: bigint("telegram_id", { mode: "number" }).notNull().unique(),
+  username: text("username"),
+  nickname: text("nickname").notNull(),
+  race: text("race", { enum: races }).notNull(),
+  class: text("class", { enum: classes }).notNull(),
+  level: integer("level").notNull().default(1),
+  xp: integer("xp").notNull().default(0),
+  gold: integer("gold").notNull().default(100),
+  currentLocationId: integer("current_location_id")
+    .notNull()
+    .default(1)
+    .references(() => locations.id),
+
+  strength: integer("strength").notNull().default(5),
+  agility: integer("agility").notNull().default(5),
+  intelligence: integer("intelligence").notNull().default(5),
+  vitality: integer("vitality").notNull().default(5),
+  freeStatPoints: integer("free_stat_points").notNull().default(0),
+
+  currentHp: integer("current_hp").notNull().default(100),
+  maxHp: integer("max_hp").notNull().default(100),
+
+  equippedWeaponId: integer("equipped_weapon_id"),
+  equippedHeadId: integer("equipped_head_id"),
+  equippedChestId: integer("equipped_chest_id"),
+  equippedLegsId: integer("equipped_legs_id"),
+  equippedFeetId: integer("equipped_feet_id"),
+  equippedAccessoryId: integer("equipped_accessory_id"),
+
+  inCombat: boolean("in_combat").notNull().default(false),
+  combatMonsterId: integer("combat_monster_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPlayerSchema = createInsertSchema(players).omit({ id: true, createdAt: true });
+export type InsertPlayer = z.infer<typeof insertPlayerSchema>;
+export type Player = typeof players.$inferSelect;
+
+// ─── INVENTORY ───────────────────────────────────────────────────────────────
+
+export const inventory = pgTable("inventory", {
+  id: serial("id").primaryKey(),
+  playerId: integer("player_id")
+    .notNull()
+    .references(() => players.id, { onDelete: "cascade" }),
+  itemId: integer("item_id")
+    .notNull()
+    .references(() => equipmentItems.id),
+  quantity: integer("quantity").notNull().default(1),
+});
+
+export const insertInventorySchema = createInsertSchema(inventory).omit({ id: true });
+export type InsertInventory = z.infer<typeof insertInventorySchema>;
+export type Inventory = typeof inventory.$inferSelect;
+
+// ─── MONSTERS ────────────────────────────────────────────────────────────────
+
+export const monsters = pgTable("monsters", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  locationId: integer("location_id")
+    .notNull()
+    .references(() => locations.id),
+  level: integer("level").notNull().default(1),
+  baseHp: integer("base_hp").notNull().default(50),
+  baseAttack: integer("base_attack").notNull().default(10),
+  baseDefense: integer("base_defense").notNull().default(5),
+  xpReward: integer("xp_reward").notNull().default(20),
+  goldRewardMin: integer("gold_reward_min").notNull().default(5),
+  goldRewardMax: integer("gold_reward_max").notNull().default(15),
+});
+
+export const insertMonsterSchema = createInsertSchema(monsters).omit({ id: true });
+export type InsertMonster = z.infer<typeof insertMonsterSchema>;
+export type Monster = typeof monsters.$inferSelect;
+
+// ─── MONSTER DROPS ───────────────────────────────────────────────────────────
+
+export const monsterDrops = pgTable("monster_drops", {
+  id: serial("id").primaryKey(),
+  monsterId: integer("monster_id")
+    .notNull()
+    .references(() => monsters.id, { onDelete: "cascade" }),
+  itemId: integer("item_id")
+    .notNull()
+    .references(() => equipmentItems.id),
+  dropChance: decimal("drop_chance", { precision: 4, scale: 1 }).notNull().default("5.0"),
+});
+
+export const insertMonsterDropSchema = createInsertSchema(monsterDrops).omit({ id: true });
+export type InsertMonsterDrop = z.infer<typeof insertMonsterDropSchema>;
+export type MonsterDrop = typeof monsters.$inferSelect;
+
+// ─── NPCS ────────────────────────────────────────────────────────────────────
+
+export const npcs = pgTable("npcs", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  title: text("title").notNull(),
+  locationId: integer("location_id")
+    .notNull()
+    .references(() => locations.id),
+  greeting: text("greeting").notNull(),
+  advice: text("advice").notNull(),
+});
+
+export const insertNpcSchema = createInsertSchema(npcs).omit({ id: true });
+export type InsertNpc = z.infer<typeof insertNpcSchema>;
+export type Npc = typeof npcs.$inferSelect;

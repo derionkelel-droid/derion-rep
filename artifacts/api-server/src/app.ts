@@ -3,6 +3,8 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { startBot } from "./bot";
+import { seedGameData } from "./bot/seed";
 
 const app: Express = express();
 
@@ -30,5 +32,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+// Start bot and seed data after app initialization
+seedGameData().then(() => {
+  startBot();
+}).catch((err) => {
+  logger.error({ err }, "Failed to seed game data or start bot");
+  startBot(); // still try to start the bot
+});
 
 export default app;
