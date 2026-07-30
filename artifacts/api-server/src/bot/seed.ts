@@ -1,4 +1,5 @@
 import { db } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import {
   locations,
   equipmentItems,
@@ -805,10 +806,25 @@ export async function migrateJunkBuyers() {
 
 // ─── SHOPKEEPER & ALCHEMIST MIGRATION ─────────────────────────────────
 export async function migrateNewNpcs() {
-  const existingShopkeeper = await db.query.npcs.findFirst({
+  // Keep the equipment merchants separate from the donation shop.  Older
+  // migrations only checked for one shopkeeper, so a partial/incorrect NPC
+  // row could make the migration skip forever.
+  const equipmentMerchantNames = [
+    "Торговец Олег", "Купец Борис", "Ларёк Квак", "Горный Торгаш",
+    "Некро-Лавка", "Снежный Купец", "Пепельный Торговец",
+    "Теневой Лавочник", "Храмовой Купец", "Звёздный Барыга",
+  ];
+  for (const name of equipmentMerchantNames) {
+    await db.update(npcs).set({ npcType: "shopkeeper" }).where(eq(npcs.name, name));
+  }
+
+  const existingShopkeepers = await db.query.npcs.findMany({
     where: (n, { eq: op }) => op(n.npcType, "shopkeeper"),
   });
-  if (existingShopkeeper) {
+  const existingAlchemists = await db.query.npcs.findMany({
+    where: (n, { eq: op }) => op(n.npcType, "alchemist"),
+  });
+  if (existingShopkeepers.length >= 10 && existingAlchemists.length >= 10) {
     logger.info("Shopkeeper & alchemist NPCs already exist, skipping.");
     return;
   }
