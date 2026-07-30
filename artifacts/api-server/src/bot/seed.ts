@@ -307,11 +307,16 @@ export async function seedGameData() {
 export async function migrateNpcs() {
   const existingNpcs = await db.query.npcs.findMany();
   if (existingNpcs.length >= 20) {
-    logger.info("NPCs already migrated, skipping.");
-    return;
+    // Check if healers already have updated greeting text
+    const outdated = existingNpcs.some((n) => n.greeting.includes("за единицу"));
+    if (!outdated) {
+      logger.info("NPCs already migrated, skipping.");
+      return;
+    }
+    logger.info("Updating healer greetings to per-25-HP pricing...");
+  } else {
+    logger.info("Migrating NPCs — adding healers to all locations...");
   }
-
-  logger.info("Migrating NPCs — adding healers to all locations...");
 
   // Delete existing NPCs and re-insert with full set
   await db.delete(npcs);
@@ -319,46 +324,46 @@ export async function migrateNpcs() {
   await db.insert(npcs).values([
     // Loc 1: 🌿 Начальная поляна
     { name: "Старый Эдвин", title: "Наставник новичков", locationId: 1, greeting: "А, новый герой! В лесах опасно, но с моими советами ты справишься. Начни с охоты на кабанов.", advice: "Не забывай распределять очки после повышения уровня! И всегда блокируй зону, по которой монстр бьёт.", npcType: "advisor", healCostPerHp: 0 },
-    { name: "Сестра Милосердия", title: "Целительница Поляны", locationId: 1, greeting: "Раны беспокоят? Я помогу тебе восстановить силы. Лечение недорогое — всего 2 монеты за единицу здоровья.", advice: "Возвращайся ко мне, когда нужна подзарядка! Я всегда на Начальной поляне.", npcType: "healer", healCostPerHp: 2 },
+    { name: "Сестра Милосердия", title: "Целительница Поляны", locationId: 1, greeting: "Раны беспокоят? Я помогу тебе восстановить силы. Лечение недорогое — всего 2 монеты за 25 единиц здоровья.", advice: "Возвращайся ко мне, когда нужна подзарядка! Я всегда на Начальной поляне.", npcType: "healer", healCostPerHp: 2 },
 
     // Loc 2: 🌲 Тёмный лес
     { name: "Моргана", title: "Хранительница Леса", locationId: 2, greeting: "Тёмный лес полон опасностей, путник. Ты силён, но будь осторожен.", advice: "Когда идёшь в лес, защищай грудь и голову — твари бьют сверху.", npcType: "advisor", healCostPerHp: 0 },
-    { name: "Лесной Доктор", title: "Травник", locationId: 2, greeting: "В лесу много ядовитых тварей. Позволь обработать твои раны за 3 монеты за единицу.", advice: "Собирай травы, когда охотишься — они помогут быстрее восстановиться.", npcType: "healer", healCostPerHp: 3 },
+    { name: "Лесной Доктор", title: "Травник", locationId: 2, greeting: "В лесу много ядовитых тварей. Позволь обработать твои раны за 3 монеты за 25 здоровья.", advice: "Собирай травы, когда охотишься — они помогут быстрее восстановиться.", npcType: "healer", healCostPerHp: 3 },
     { name: "Эльда", title: "Мастер Квестов", locationId: 2, greeting: "Ищешь достойное испытание? Убей 5 лесных троллей — я щедро награжу!", advice: "Тролли сильны в лобовой атаке — бей с фланга.", npcType: "quest_giver", healCostPerHp: 0 },
 
     // Loc 3: 🌊 Болотные топи
     { name: "Грязный Гарри", title: "Проводник Топи", locationId: 3, greeting: "Ещё один смельчак решил пройти через топи? Не суйся в воду без защиты.", advice: "На болотах главное — ноги. Твари ползают и кусают снизу.", npcType: "advisor", healCostPerHp: 0 },
-    { name: "Болотная Знахарка", title: "Шаманка Топей", locationId: 3, greeting: "Топи высасывают жизнь. Мои зелья поставят тебя на ноги за 4 монеты за единицу.", advice: "Остерегайся болотной лихорадки — сразу лечись после боёв в топи.", npcType: "healer", healCostPerHp: 4 },
+    { name: "Болотная Знахарка", title: "Шаманка Топей", locationId: 3, greeting: "Топи высасывают жизнь. Мои зелья поставят тебя на ноги за 4 монеты за 25 здоровья.", advice: "Остерегайся болотной лихорадки — сразу лечись после боёв в топи.", npcType: "healer", healCostPerHp: 4 },
 
     // Loc 4: 🏔️ Каменистое плато
     { name: "Каменный Джек", title: "Шахтёр-Ветеран", locationId: 4, greeting: "Неплохо ты добрался, вояка. На плато ветер сильный, смотри под ноги!", advice: "Големы медленные — уворачивайся. Их слабость в ногах.", npcType: "advisor", healCostPerHp: 0 },
-    { name: "Скальный Лекарь", title: "Костоправ Плато", locationId: 4, greeting: "Падения с высоты и удары камней — тут без меня не обойтись. 5 монет за единицу.", advice: "На плато береги голову — падающие камни не щадят.", npcType: "healer", healCostPerHp: 5 },
+    { name: "Скальный Лекарь", title: "Костоправ Плато", locationId: 4, greeting: "Падения с высоты и удары камней — тут без меня не обойтись. 5 монет за 25 здоровья.", advice: "На плато береги голову — падающие камни не щадят.", npcType: "healer", healCostPerHp: 5 },
 
     // Loc 5: 🏛️ Забытые руины
     { name: "Лира", title: "Дух Руин", locationId: 5, greeting: "Ты чувствуешь магию? Руины хранят знания и чудовищ.", advice: "Нежить боится атак в голову — без неё они теряются.", npcType: "advisor", healCostPerHp: 0 },
-    { name: "Призрачный Целитель", title: "Призрак Лекаря", locationId: 5, greeting: "Сквозь века я лечу раны живых... за 6 монет за единицу.", advice: "В руинах берегись проклятий — они высасывают жизнь быстрее когтей.", npcType: "healer", healCostPerHp: 6 },
+    { name: "Призрачный Целитель", title: "Призрак Лекаря", locationId: 5, greeting: "Сквозь века я лечу раны живых... за 6 монет за 25 здоровья.", advice: "В руинах берегись проклятий — они высасывают жизнь быстрее когтей.", npcType: "healer", healCostPerHp: 6 },
     { name: "Сержант Кейн", title: "Квестмейстер", locationId: 5, greeting: "Проклятые руины кишат нежитью. Очисти их от скверны!", advice: "Скелеты слабы к дробящим атакам — используй это.", npcType: "quest_giver", healCostPerHp: 0 },
 
     // Loc 6: ❄️ Ледяные вершины
     { name: "Белый Клык", title: "Вожак Клана", locationId: 6, greeting: "Мало кто забирается так высоко. Лёд не прощает ошибок.", advice: "В холода блокируй грудь и живот — холодные твари бьют в центр.", npcType: "advisor", healCostPerHp: 0 },
-    { name: "Ледяная Мари", title: "Целительница Севера", locationId: 6, greeting: "Обморожение и раны — моя специальность. 6 монет за единицу.", advice: "В холодной местности трать больше энергии на блок — замёрзшие мышцы медленнее.", npcType: "healer", healCostPerHp: 6 },
+    { name: "Ледяная Мари", title: "Целительница Севера", locationId: 6, greeting: "Обморожение и раны — моя специальность. 6 монет за 25 здоровья.", advice: "В холодной местности трать больше энергии на блок — замёрзшие мышцы медленнее.", npcType: "healer", healCostPerHp: 6 },
 
     // Loc 7: 🌋 Вулканические недра
     { name: "Пламенный Кузнец", title: "Мастер Огня", locationId: 7, greeting: "Жарко тут? Ха! Если выживешь, расскажу о легендарном оружии.", advice: "Демоны атакуют пояс — прикрой его в первую очередь.", npcType: "advisor", healCostPerHp: 0 },
-    { name: "Магма-Лекарь", title: "Исцеляющий Жаром", locationId: 7, greeting: "Ожоги и раны от лавы — моя работа. 7 монет за единицу.", advice: "Пей больше воды и не стой на месте в вулканических недрах.", npcType: "healer", healCostPerHp: 7 },
+    { name: "Магма-Лекарь", title: "Исцеляющий Жаром", locationId: 7, greeting: "Ожоги и раны от лавы — моя работа. 7 монет за 25 здоровья.", advice: "Пей больше воды и не стой на месте в вулканических недрах.", npcType: "healer", healCostPerHp: 7 },
     { name: "Полковник Вульф", title: "Охотник на Демонов", locationId: 7, greeting: "Вулканические твари опаснее всего. Докажи, что ты охотник!", advice: "Огонь обжигает — держи дистанцию.", npcType: "quest_giver", healCostPerHp: 0 },
 
     // Loc 8: 🌫️ Туманное ущелье
     { name: "Туманный Странник", title: "Проводник Душ", locationId: 8, greeting: "Туман густой, как кисель... Я брожу тут века.", advice: "В ущелье блокируй ноги. Призраки любят атаковать снизу.", npcType: "advisor", healCostPerHp: 0 },
-    { name: "Целительница Туманов", title: "Хозяйка Мглы", locationId: 8, greeting: "Туман скрывает не только врагов, но и раны. 8 монет за единицу.", advice: "В тумане доверяй не глазам, а чутью — враг всегда рядом.", npcType: "healer", healCostPerHp: 8 },
+    { name: "Целительница Туманов", title: "Хозяйка Мглы", locationId: 8, greeting: "Туман скрывает не только врагов, но и раны. 8 монет за 25 здоровья.", advice: "В тумане доверяй не глазам, а чутью — враг всегда рядом.", npcType: "healer", healCostPerHp: 8 },
 
     // Loc 9: 🔮 Затерянный храм
     { name: "Хранитель Тайн", title: "Библиотекарь", locationId: 9, greeting: "Ты дошёл до храма. Мало кому это удаётся.", advice: "Стражи бьют в голову и ноги — выбери зону и держись её.", npcType: "advisor", healCostPerHp: 0 },
-    { name: "Жрица Света", title: "Целительница Храма", locationId: 9, greeting: "Свет храма исцеляет любые раны. 9 монет за единицу здоровья.", advice: "В храме главное — вера. И хорошая броня.", npcType: "healer", healCostPerHp: 9 },
+    { name: "Жрица Света", title: "Целительница Храма", locationId: 9, greeting: "Свет храма исцеляет любые раны. 9 монет за 25 здоровья.", advice: "В храме главное — вера. И хорошая броня.", npcType: "healer", healCostPerHp: 9 },
 
     // Loc 10: ✨ Эфирные чертоги
     { name: "Эфириус", title: "Сущность", locationId: 10, greeting: "Ты достиг границы миров. Докажи, что достоин.", advice: "В эфире нет правил. Читай атаки врага и адаптируйся.", npcType: "advisor", healCostPerHp: 0 },
-    { name: "Эфирный Дух", title: "Исцеляющая Энергия", locationId: 10, greeting: "Материя и дух едины. Я восстановлю твою сущность за 10 монет за единицу.", advice: "В эфирных чертогах береги разум — иллюзии убивают быстрее клинков.", npcType: "healer", healCostPerHp: 10 },
+    { name: "Эфирный Дух", title: "Исцеляющая Энергия", locationId: 10, greeting: "Материя и дух едины. Я восстановлю твою сущность за 10 монет за 25 здоровья.", advice: "В эфирных чертогах береги разум — иллюзии убивают быстрее клинков.", npcType: "healer", healCostPerHp: 10 },
   ]);
 
   logger.info("NPCs migrated — 20 NPCs across 10 locations");
