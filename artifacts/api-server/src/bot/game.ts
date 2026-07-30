@@ -605,7 +605,7 @@ export function canUseSkill(skill: SkillDef, hits: number, blocks: number, misse
 
 export function calculateSkillDamage(player: Player, atk: number): number {
   const stat = getMainStatValue(player);
-  return Math.floor(atk * (stat / 2));
+  return Math.floor(atk * (stat / 3));
 }
 
 // ─── POTION RECIPES ─────────────────────────────────────────────────────
