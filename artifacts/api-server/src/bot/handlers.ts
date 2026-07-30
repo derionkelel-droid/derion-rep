@@ -214,6 +214,8 @@ export function registerHandlers(bot: Bot) {
       const vitality = rb.vit + cb.vit;
       const maxHp = 100 + vitality * (c === "warrior" ? 20 : c === "mage" ? 10 : c === "archer" ? 14 : 12);
 
+      // Telegram ID is the permanent account key.  A repeated callback must
+      // never create or reset a second character for the same user.
       await db.insert(players).values({
         telegramId,
         nickname,
@@ -226,7 +228,16 @@ export function registerHandlers(bot: Bot) {
         currentHp: maxHp,
         maxHp,
         currentLocationId: 1,
-      } as any);
+      } as any).onConflictDoNothing({ target: players.telegramId });
+
+      // If two callbacks arrived at once, the first one owns the account.
+      // Continue with the persisted record rather than treating the second
+      // callback as a new character.
+      const persistedPlayer = await getPlayer(telegramId);
+      if (!persistedPlayer) {
+        await ctx.editMessageText("❌ Не удалось сохранить персонажа. Попробуй ещё раз.");
+        return;
+      }
 
       await ctx.session?.set("pending_nickname", undefined);
       await ctx.session?.set("pending_race", undefined);
