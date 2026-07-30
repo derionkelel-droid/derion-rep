@@ -14,6 +14,7 @@ import {
   npcs,
   combatSessions,
   playerEffects,
+  playerAchievements,
   type Player,
   type EquipmentItem,
   type JunkItem,
