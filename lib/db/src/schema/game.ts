@@ -195,6 +195,9 @@ export const combatSessions = pgTable("combat_sessions", {
     .notNull()
     .references(() => locations.id),
   round: integer("round").notNull().default(1),
+  hits: integer("hits").notNull().default(0),
+  blocks: integer("blocks").notNull().default(0),
+  misses: integer("misses").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

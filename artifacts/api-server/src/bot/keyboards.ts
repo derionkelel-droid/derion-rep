@@ -1,5 +1,6 @@
 import { InlineKeyboard } from "grammy";
 import { getAttackZones, getBlockZones } from "./combat";
+import type { SkillDef } from "./game";
 
 export function mainMenuKeyboard() {
   return new InlineKeyboard()
@@ -62,6 +63,27 @@ export function continueCombatKeyboard() {
   return new InlineKeyboard()
     .text("⚔️ Следующий раунд", "combat_next")
     .text("🏃 Сбежать", "combat_run");
+}
+
+export function skillCombatKeyboard(skills: SkillDef[]) {
+  const kb = new InlineKeyboard();
+  for (const s of skills) {
+    kb.text(`${s.icon} ${s.name}`, `skill_${s.id}`).row();
+  }
+  return kb;
+}
+
+export function combatActionSelectionKeyboard(skills: SkillDef[], canUse: boolean[]) {
+  const kb = new InlineKeyboard()
+    .text("⚔️ Атака", "combat_attack")
+    .text("🏃 Сбежать", "combat_run");
+  for (let i = 0; i < skills.length; i++) {
+    const s = skills[i];
+    const label = canUse[i] ? `${s.icon} ${s.name}` : `🔒 ${s.name}`;
+    const data = canUse[i] ? `skill_${s.id}` : "noop";
+    kb.row().text(label, data);
+  }
+  return kb;
 }
 
 export function inventoryKeyboard(items: { id: number; name: string; slot: string; isEquipped: boolean }[], page = 0) {

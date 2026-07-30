@@ -1,5 +1,5 @@
 import { Bot, Context, InlineKeyboard } from "grammy";
-import { db, players } from "@workspace/db";
+import { db, players, combatSessions } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import {
@@ -42,7 +42,12 @@ import {
   canCraftPotion,
   craftPotion,
   formatActiveEffects,
+  SKILLS,
+  getClassSkills,
+  canUseSkill,
+  calculateSkillDamage,
   type Player,
+  type SkillType,
 } from "./game";
 import {
   mainMenuKeyboard,
@@ -55,13 +60,16 @@ import {
   equipActionKeyboard,
   shopKeyboard,
   locationsKeyboard,
+  combatActionSelectionKeyboard,
 } from "./keyboards";
-import { resolveRound } from "./combat";
+import { resolveRound, resolveSkillRound } from "./combat";
 
 // ─── SESSION STATE ───────────────────────────────────────────────────────────
 
 // Short-lived: stores pending attack zone between attack choice and block choice
 const pendingAttack = new Map<number, string>();
+// Short-lived: stores selected skill id between skill choice and block choice
+const pendingSkill = new Map<number, string>();
 
 // ─── REGISTER HANDLERS ───────────────────────────────────────────────────────
 
@@ -290,15 +298,47 @@ export function registerHandlers(bot: Bot) {
           return;
         }
 
-        pendingAttack.set(telegramId, "");
-        await ctx.editMessageText("🎯 Выбери зону <b>атаки</b>:", {
+        // Show action selection: normal attack + available skills
+        const classSkills = getClassSkills(player.class as Class);
+        const canUse = classSkills.map((s) => canUseSkill(s, session.hits, session.blocks, session.misses));
+
+        // Calculate stats display
+        let statsLine = `🗡️${session.hits} 🛡️${session.blocks} 💨${session.misses}`;
+
+        let msg = `⚔️ <b>Выбери действие:</b>\n`;
+        msg += `📊 Боевая статистика: ${statsLine}\n\n`;
+
+        // List unlocked skills
+        for (let i = 0; i < classSkills.length; i++) {
+          const s = classSkills[i];
+          const status = canUse[i] ? "✅" : "🔒";
+          msg += `${status} ${s.icon} ${s.name} — ${s.description}\n`;
+        }
+
+        await ctx.editMessageText(msg, {
           parse_mode: "HTML",
-          reply_markup: attackKeyboard(),
+          reply_markup: combatActionSelectionKeyboard(classSkills, canUse),
         });
       } catch (e) {
         logger.error({ err: e, telegramId }, "combat_start error");
         await ctx.editMessageText("❌ Ошибка. Попробуй /start.").catch(() => {});
       }
+      return;
+    }
+
+    // ── SKILL SELECT ───────────────────────────────────────────────────
+    if (data.startsWith("skill_")) {
+      const skillId = data.replace("skill_", "");
+      const classSkills = getClassSkills((await getPlayer(telegramId))?.class as Class);
+      const skill = classSkills.find((s) => s.id === skillId);
+      if (!skill) return;
+
+      pendingSkill.set(telegramId, skillId);
+      pendingAttack.set(telegramId, "");
+      await ctx.editMessageText(`💥 <b>${skill.icon} ${skill.name}</b>\n🎯 Выбери зону атаки:`, {
+        parse_mode: "HTML",
+        reply_markup: attackKeyboard(),
+      });
       return;
     }
 
@@ -343,22 +383,60 @@ export function registerHandlers(bot: Bot) {
 
         // Load equipment stats for this round
         const equipStats = await loadEquippedStats(player);
-        // Resolve round
-        const result = resolveRound(
-          player,
-          attackZone,
-          blockZone,
-          session.monsterHp,
-          session.monsterAttack,
-          session.monsterDefense,
-          equipStats.bonusAttack,
-          equipStats.bonusDefense,
-          session.round,
-        );
+
+        // Check if a skill was selected
+        const skillId = pendingSkill.get(telegramId);
+        pendingSkill.delete(telegramId);
+
+        // Resolve round (with skill if selected)
+        let result;
+        let skillName = "";
+        if (skillId) {
+          const classSkills = getClassSkills(player.class as Class);
+          const skill = classSkills.find((s) => s.id === skillId);
+          if (skill) {
+            skillName = skill.name;
+            const skillDmg = calculateSkillDamage(player, equipStats.bonusAttack || 1);
+            result = resolveSkillRound(
+              player,
+              skill.skillType as SkillType,
+              attackZone,
+              blockZone,
+              session.monsterHp,
+              session.monsterAttack,
+              session.monsterDefense,
+              skillDmg,
+              equipStats.bonusAttack,
+              equipStats.bonusDefense,
+              session.round,
+              skill.name,
+            );
+          } else {
+            // Fallback to normal
+            result = resolveRound(player, attackZone, blockZone, session.monsterHp, session.monsterAttack, session.monsterDefense, equipStats.bonusAttack, equipStats.bonusDefense, session.round);
+          }
+        } else {
+          result = resolveRound(player, attackZone, blockZone, session.monsterHp, session.monsterAttack, session.monsterDefense, equipStats.bonusAttack, equipStats.bonusDefense, session.round);
+        }
 
         // Update monster HP in DB session and increment round
         await updateCombatSessionHp(player.id, result.monsterNewHp);
         await incrementCombatRound(player.id);
+
+        // Track combat stats (hits/blocks/misses)
+        const wasHit = !result.playerBlocked; // player landed a hit
+        const wasBlock = result.monsterBlocked; // player blocked monster
+        const wasMiss = result.playerBlocked; // monster blocked player
+        const updates: Record<string, number> = {};
+        if (wasHit) updates.hits = (session.hits || 0) + 1;
+        if (wasBlock) updates.blocks = (session.blocks || 0) + 1;
+        if (wasMiss) updates.misses = (session.misses || 0) + 1;
+        if (Object.keys(updates).length > 0) {
+          await db
+            .update(combatSessions)
+            .set(updates as any)
+            .where(eq(combatSessions.id, session.id));
+        }
 
         // Update player HP in DB
         await db
@@ -471,7 +549,12 @@ export function registerHandlers(bot: Bot) {
             }
           }
 
-          const victoryMsg = `${logText}\n\n🎉 <b>ПОБЕДА!</b>
+          const curHits = (session.hits || 0) + (wasHit ? 1 : 0);
+          const curBlocks = (session.blocks || 0) + (wasBlock ? 1 : 0);
+          const curMisses = (session.misses || 0) + (wasMiss ? 1 : 0);
+          const statsLine = `🗡️${curHits} 🛡️${curBlocks} 💨${curMisses}`;
+
+          const victoryMsg = `${logText}\n📊 Статистика: ${statsLine}\n\n🎉 <b>ПОБЕДА!</b>
 🏆 Монстр ${session.monsterName} повержен!
 ✨ +${xpGain} XP | 🪙 +${goldGain} золота${dropText}${junkText}${questText}${leveledUp ? `\n\n⬆️ <b>УРОВЕНЬ ${newLevel}!</b> (+5 очков навыков)` : ""}${locationUnlock}`;
 
@@ -493,7 +576,12 @@ export function registerHandlers(bot: Bot) {
             })
             .where(eq(players.id, player.id));
 
-          const deathMsg = `${logText}\n\n💀 <b>Ты погиб...</b>
+          const curHitsD = (session.hits || 0) + (wasHit ? 1 : 0);
+          const curBlocksD = (session.blocks || 0) + (wasBlock ? 1 : 0);
+          const curMissesD = (session.misses || 0) + (wasMiss ? 1 : 0);
+          const deathStats = `🗡️${curHitsD} 🛡️${curBlocksD} 💨${curMissesD}`;
+
+          const deathMsg = `${logText}\n📊 Статистика: ${deathStats}\n\n💀 <b>Ты погиб...</b>
 Но не отчаивайся — ты восстановился с половиной HP!`;
 
           await ctx.editMessageText(deathMsg, {
@@ -504,7 +592,11 @@ export function registerHandlers(bot: Bot) {
         }
 
         // Combat continues
-        const continueMsg = `${logText}\n\n👹 <b>${session.monsterName}</b> — ❤️ ${result.monsterNewHp}/${session.monsterMaxHp}`;
+        const curHitsC = (session.hits || 0) + (wasHit ? 1 : 0);
+        const curBlocksC = (session.blocks || 0) + (wasBlock ? 1 : 0);
+        const curMissesC = (session.misses || 0) + (wasMiss ? 1 : 0);
+        const continueStats = `🗡️${curHitsC} 🛡️${curBlocksC} 💨${curMissesC}`;
+        const continueMsg = `${logText}\n📊 Статистика: ${continueStats}\n\n👹 <b>${session.monsterName}</b> — ❤️ ${result.monsterNewHp}/${session.monsterMaxHp}`;
 
         await ctx.editMessageText(continueMsg, {
           parse_mode: "HTML",

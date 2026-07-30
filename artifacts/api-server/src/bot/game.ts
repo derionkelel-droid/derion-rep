@@ -544,6 +544,70 @@ export async function incrementQuestProgress(playerId: number, monsterName: stri
   return { ...active, currentProgress: newProgress, isCompleted };
 }
 
+// ─── SKILLS ────────────────────────────────────────────────────────────
+
+export type SkillType = "basic" | "special" | "ultimate";
+
+export type SkillDef = {
+  id: string;
+  name: string;
+  description: string;
+  skillType: SkillType;
+  icon: string;
+  classRestriction: Class;
+};
+
+export const SKILLS: SkillDef[] = [
+  // ── WARRIOR ──
+  { id: "war_r", name: "Мощный удар", description: "Атака с силой: atk × (сила/2)", skillType: "basic", icon: "💥", classRestriction: "warrior" },
+  { id: "war_s", name: "Пробивающий рывок", description: "Игнорирует блок врага", skillType: "special", icon: "⚡", classRestriction: "warrior" },
+  { id: "war_u", name: "Смертельный вихрь", description: "Атакует 3 зоны сразу", skillType: "ultimate", icon: "🌀", classRestriction: "warrior" },
+  // ── MAGE ──
+  { id: "mag_r", name: "Огненный шар", description: "Атака с силой: atk × (инт/2)", skillType: "basic", icon: "🔥", classRestriction: "mage" },
+  { id: "mag_s", name: "Ледяная игла", description: "Игнорирует блок врага", skillType: "special", icon: "❄️", classRestriction: "mage" },
+  { id: "mag_u", name: "Цепная молния", description: "Атакует все 5 зон разом!", skillType: "ultimate", icon: "⚡", classRestriction: "mage" },
+  // ── ARCHER ──
+  { id: "arc_r", name: "Прицельный выстрел", description: "Игнорирует блок врага", skillType: "basic", icon: "🎯", classRestriction: "archer" },
+  { id: "arc_s", name: "Уклоняющий выстрел", description: "Атака + автоблок атаки врага", skillType: "special", icon: "💨", classRestriction: "archer" },
+  { id: "arc_u", name: "Град стрел", description: "Атакует все 5 зон разом!", skillType: "ultimate", icon: "🏹", classRestriction: "archer" },
+  // ── ASSASSIN ──
+  { id: "ass_r", name: "Удар из тени", description: "Игнорирует защиту врага", skillType: "basic", icon: "🗡️", classRestriction: "assassin" },
+  { id: "ass_s", name: "Отравленный клинок", description: "Двойной урон, но малый шанс", skillType: "special", icon: "☠️", classRestriction: "assassin" },
+  { id: "ass_u", name: "Смертельный танец", description: "Две атаки подряд: урон ×2", skillType: "ultimate", icon: "💫", classRestriction: "assassin" },
+];
+
+export function getMainStat(player: Player): string {
+  const c = player.class as Class;
+  return c === "warrior" ? "strength" : c === "mage" ? "intelligence" : "agility";
+}
+
+export function getMainStatValue(player: Player): number {
+  const c = player.class as Class;
+  if (c === "warrior") return player.strength;
+  if (c === "mage") return player.intelligence;
+  return player.agility; // archer & assassin
+}
+
+export function getClassSkills(playerClass: Class): SkillDef[] {
+  return SKILLS.filter((s) => s.classRestriction === playerClass);
+}
+
+export function getSkillRequirement(skill: SkillDef): { hits: number; blocks: number; misses: number } {
+  if (skill.skillType === "basic") return { hits: 1, blocks: 0, misses: 0 };
+  if (skill.skillType === "special") return { hits: 1, blocks: 1, misses: 0 };
+  return { hits: 0, blocks: 1, misses: 1 }; // ultimate
+}
+
+export function canUseSkill(skill: SkillDef, hits: number, blocks: number, misses: number): boolean {
+  const req = getSkillRequirement(skill);
+  return hits >= req.hits && blocks >= req.blocks && misses >= req.misses;
+}
+
+export function calculateSkillDamage(player: Player, atk: number): number {
+  const stat = getMainStatValue(player);
+  return Math.floor(atk * (stat / 2));
+}
+
 // ─── POTION RECIPES ─────────────────────────────────────────────────────
 
 export type PotionRecipe = {

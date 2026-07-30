@@ -1,5 +1,5 @@
 import { db, eq, players, type Player } from "@workspace/db";
-import { calculateAttack, calculateDefense, calculateMaxHp } from "./game";
+import { calculateAttack, calculateDefense, calculateMaxHp, type SkillType } from "./game";
 
 const ATTACK_ZONES = ["голова", "грудь", "живот", "пояс", "ноги"] as const;
 const BLOCK_ZONES = [
@@ -115,6 +115,100 @@ export function resolveRound(
     playerDamage,
     monsterDamage,
     playerHit: playerDamage > 0,
+    monsterHit: monsterDamage > 0,
+    playerBlocked,
+    monsterBlocked,
+    playerNewHp: newPlayerHp,
+    monsterNewHp: newMonsterHp,
+    attackZone: playerAttackZone,
+    monsterAttackZone,
+    playerBlockZone,
+    monsterBlockZone,
+    log,
+  };
+}
+
+// ─── SKILL RESOLUTION ──────────────────────────────────────────────────
+
+export function resolveSkillRound(
+  player: Player,
+  skillType: SkillType,
+  playerAttackZone: string,
+  playerBlockZone: [string, string],
+  monsterHp: number,
+  monsterAttack: number,
+  monsterDefense: number,
+  skillDamage: number,
+  equipBonusAtk = 0,
+  equipBonusDef = 0,
+  round = 1,
+  skillName = "Навык",
+): CombatResult {
+  const monsterAttackZone = randomEnemyAttack();
+  const monsterBlockZone = randomEnemyBlock();
+
+  const playerAtk = calculateAttack(player, equipBonusAtk);
+  const playerDef = calculateDefense(player, equipBonusDef);
+
+  // Monster resolves normally
+  const monsterBlocked = playerBlockZone.includes(monsterAttackZone);
+  let rawMonsterDmg = Math.max(1, monsterAttack - playerDef * 0.3);
+  rawMonsterDmg = rawMonsterDmg * (0.8 + Math.random() * 0.4);
+  const monsterDamage = monsterBlocked ? Math.floor(rawMonsterDmg * 0.3) : Math.floor(rawMonsterDmg);
+
+  const newMonsterHp = Math.max(0, monsterHp - skillDamage);
+  const newPlayerHp = Math.max(0, player.currentHp - monsterDamage);
+
+  let playerBlocked = false;
+  let playerHit = true;
+
+  if (skillType === "basic") {
+    // Power attack: normal block check, uses skillDamage
+    playerBlocked = monsterBlockZone.includes(playerAttackZone);
+  } else if (skillType === "special") {
+    // Piercing: always hits (ignore block)
+    playerBlocked = false;
+  } else if (skillType === "ultimate") {
+    // Multi-zone: hits unless monster blocks BOTH player's zone + one adjacent
+    const adjacent = ["голова", "грудь", "живот", "пояс", "ноги"];
+    const idx = adjacent.indexOf(playerAttackZone);
+    const allZones = new Set([playerAttackZone, adjacent[(idx + 1) % 5], adjacent[(idx + 2) % 5]]);
+    // If monster block covers ALL attacked zones → blocked
+    const monsterBlockSet = new Set(monsterBlockZone);
+    let coveredCount = 0;
+    for (const z of allZones) {
+      if (monsterBlockSet.has(z)) coveredCount++;
+    }
+    playerBlocked = coveredCount >= allZones.size;
+  }
+
+  // Final damage (blocked = 30%)
+  const finalDamage = playerBlocked ? Math.floor(skillDamage * 0.3) : skillDamage;
+
+  const log: string[] = [];
+  log.push(`⚔️ <b>РАУНД #${round}</b>`);
+  log.push(`━━━━━━━━━━━━━━━`);
+  log.push(
+    `💥 <b>${skillName}</b> в <b>${ZONE_NAMES[playerAttackZone].replace("🎯 ", "")}</b>` +
+      (playerBlocked ? ` — 🛡️ Монстр заблокировал! (-${finalDamage} HP)` : ` — 💥 Попадание! (-${finalDamage} HP)`),
+  );
+  log.push(
+    `👹 Монстр атакует <b>${ZONE_NAMES[monsterAttackZone].replace("🎯 ", "")}</b>` +
+      (monsterBlocked ? ` — 🛡️ Ты заблокировал! (-${monsterDamage} HP)` : ` — 💥 Попадание! (-${monsterDamage} HP)`),
+  );
+  log.push(`━━━━━━━━━━━━━━━`);
+  log.push(`❤️ Твоё HP: ${newPlayerHp} (-${monsterDamage})`);
+  log.push(`💀 HP монстра: ${newMonsterHp} (-${finalDamage})`);
+
+  // Atk/block determination for stat tracking (reuse CombatResult fields)
+  // playerBlocked from above
+  // playerHit is always true (skill always lands, but may be blocked)
+  // monsterBlocked is from monster's attack being blocked by player
+
+  return {
+    playerDamage: finalDamage,
+    monsterDamage,
+    playerHit: finalDamage > 0,
     monsterHit: monsterDamage > 0,
     playerBlocked,
     monsterBlocked,
