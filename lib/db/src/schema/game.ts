@@ -16,6 +16,9 @@ export type EquipmentSlot = (typeof equipmentSlots)[number];
 export const armorTypes = ["cloth", "leather", "plate", "weapon"] as const;
 export type ArmorType = (typeof armorTypes)[number];
 
+export const npcTypes = ["advisor", "healer", "quest_giver"] as const;
+export type NpcType = (typeof npcTypes)[number];
+
 // ─── LOCATIONS ───────────────────────────────────────────────────────────────
 
 export const locations = pgTable("locations", {
@@ -163,8 +166,61 @@ export const npcs = pgTable("npcs", {
     .references(() => locations.id),
   greeting: text("greeting").notNull(),
   advice: text("advice").notNull(),
+  npcType: text("npc_type", { enum: npcTypes }).notNull().default("advisor"),
+  healCostPerHp: integer("heal_cost_per_hp").notNull().default(0),
 });
 
 export const insertNpcSchema = createInsertSchema(npcs).omit({ id: true });
 export type InsertNpc = z.infer<typeof insertNpcSchema>;
 export type Npc = typeof npcs.$inferSelect;
+
+// ─── COMBAT SESSIONS ────────────────────────────────────────────────────────
+
+export const combatSessions = pgTable("combat_sessions", {
+  id: serial("id").primaryKey(),
+  playerId: integer("player_id")
+    .notNull()
+    .references(() => players.id, { onDelete: "cascade" }),
+  monsterId: integer("monster_id").notNull(),
+  monsterName: text("monster_name").notNull(),
+  monsterHp: integer("monster_hp").notNull(),
+  monsterMaxHp: integer("monster_max_hp").notNull(),
+  monsterAttack: integer("monster_attack").notNull(),
+  monsterDefense: integer("monster_defense").notNull(),
+  monsterLevel: integer("monster_level").notNull(),
+  xpReward: integer("xp_reward").notNull(),
+  goldMin: integer("gold_min").notNull(),
+  goldMax: integer("gold_max").notNull(),
+  locationId: integer("location_id")
+    .notNull()
+    .references(() => locations.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCombatSessionSchema = createInsertSchema(combatSessions).omit({ id: true, createdAt: true });
+export type InsertCombatSession = z.infer<typeof insertCombatSessionSchema>;
+export type CombatSession = typeof combatSessions.$inferSelect;
+
+// ─── QUESTS ─────────────────────────────────────────────────────────────────
+
+export const quests = pgTable("quests", {
+  id: serial("id").primaryKey(),
+  playerId: integer("player_id")
+    .notNull()
+    .references(() => players.id, { onDelete: "cascade" }),
+  npcId: integer("npc_id")
+    .notNull()
+    .references(() => npcs.id),
+  targetMonsterName: text("target_monster_name").notNull(),
+  targetMonsterLocationId: integer("target_monster_location_id").notNull(),
+  targetQuantity: integer("target_quantity").notNull().default(5),
+  currentProgress: integer("current_progress").notNull().default(0),
+  rewardXp: integer("reward_xp").notNull().default(100),
+  rewardGold: integer("reward_gold").notNull().default(50),
+  isCompleted: boolean("is_completed").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertQuestSchema = createInsertSchema(quests).omit({ id: true, createdAt: true });
+export type InsertQuest = z.infer<typeof insertQuestSchema>;
+export type Quest = typeof quests.$inferSelect;

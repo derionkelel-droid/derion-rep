@@ -1,6 +1,7 @@
 import { Bot, Context, InlineKeyboard } from "grammy";
 import { db, players } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { logger } from "../lib/logger";
 import {
   getPlayer,
   getInventory,
@@ -23,6 +24,14 @@ import {
   unequipItem,
   formatPlayerProfile,
   loadEquippedStats,
+  createCombatSession,
+  getCombatSession,
+  updateCombatSessionHp,
+  endCombat,
+  getActiveQuest,
+  getAnyActiveQuest,
+  createQuest,
+  incrementQuestProgress,
   type Player,
 } from "./game";
 import {
@@ -41,27 +50,8 @@ import { resolveRound } from "./combat";
 
 // ─── SESSION STATE ───────────────────────────────────────────────────────────
 
-// Track combat state per user (in memory since it's transient)
-const combatState = new Map<
-  number,
-  {
-    monsterId: number;
-    monsterName: string;
-    monsterHp: number;
-    monsterMaxHp: number;
-    monsterAttack: number;
-    monsterDefense: number;
-    monsterLevel: number;
-    xpReward: number;
-    goldMin: number;
-    goldMax: number;
-    locationId: number;
-  }
->();
-
-// Store pending attack zone choice
+// Short-lived: stores pending attack zone between attack choice and block choice
 const pendingAttack = new Map<number, string>();
-const pendingBlock = new Map<number, string>();
 
 // ─── REGISTER HANDLERS ───────────────────────────────────────────────────────
 
@@ -238,69 +228,67 @@ export function registerHandlers(bot: Bot) {
 
     // ── SEARCH MONSTER ────────────────────────────────────────────────
     if (data === "search_monster") {
-      const player = await getPlayer(telegramId);
-      if (!player) return;
-      const monster = await getRandomMonster(player.currentLocationId!);
-      if (!monster) {
-        await ctx.editMessageText("В этой локации нет монстров...");
-        return;
-      }
+      try {
+        const player = await getPlayer(telegramId);
+        if (!player) return;
+        const monster = await getRandomMonster(player.currentLocationId!);
+        if (!monster) {
+          await ctx.editMessageText("В этой локации нет монстров...");
+          return;
+        }
 
-      // Scale monster stats by level
-      const levelMultiplier = monster.level;
-      const currentHp = monster.baseHp + levelMultiplier * 15;
-      const atk = monster.baseAttack + levelMultiplier * 3;
-      const def = monster.baseDefense + levelMultiplier * 1.5;
+        // Clean up any stale combat session
+        if (player.inCombat) {
+          await endCombat(player.id);
+        }
 
-      // Save combat state
-      combatState.set(telegramId, {
-        monsterId: monster.id,
-        monsterName: monster.name,
-        monsterHp: currentHp,
-        monsterMaxHp: currentHp,
-        monsterAttack: atk,
-        monsterDefense: def,
-        monsterLevel: monster.level,
-        xpReward: monster.xpReward,
-        goldMin: monster.goldRewardMin,
-        goldMax: monster.goldRewardMax,
-        locationId: player.currentLocationId!,
-      });
+        // Create combat session in DB
+        const session = await createCombatSession(player, monster, player.currentLocationId!);
 
-      // Set player in combat
-      await db
-        .update(players)
-        .set({ inCombat: true, combatMonsterId: monster.id })
-        .where(eq(players.id, player.id));
+        // Set player in combat
+        await db
+          .update(players)
+          .set({ inCombat: true, combatMonsterId: monster.id })
+          .where(eq(players.id, player.id));
 
-      const msg = `👹 <b>${monster.name}</b> (Ур. ${monster.level})
-❤️ HP: ${currentHp} | ⚔️ Атака: ${atk} | 🛡️ Защита: ${def}
+        const msg = `👹 <b>${monster.name}</b> (Ур. ${monster.level})
+❤️ HP: ${session.monsterHp} | ⚔️ Атака: ${session.monsterAttack} | 🛡️ Защита: ${session.monsterDefense}
 
 Бой начинается!`;
 
-      await ctx.editMessageText(msg, {
-        parse_mode: "HTML",
-        reply_markup: new InlineKeyboard().text("⚔️ Атаковать", "combat_attack").text("🏃 Сбежать", "combat_run"),
-      });
+        await ctx.editMessageText(msg, {
+          parse_mode: "HTML",
+          reply_markup: new InlineKeyboard().text("⚔️ Атаковать", "combat_attack").text("🏃 Сбежать", "combat_run"),
+        });
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "search_monster error");
+        await ctx.editMessageText("❌ Ошибка начала боя. Попробуй снова.", { reply_markup: mainMenuKeyboard() });
+        await endCombat((await getPlayer(telegramId))?.id || 0).catch(() => {});
+      }
       return;
     }
 
     // ── COMBAT ─────────────────────────────────────────────────────────
-    if (data === "combat_attack") {
-      pendingAttack.set(telegramId, "");
-      await ctx.editMessageText("🎯 Выбери зону <b>атаки</b>:", {
-        parse_mode: "HTML",
-        reply_markup: attackKeyboard(),
-      });
-      return;
-    }
+    if (data === "combat_attack" || data === "combat_next") {
+      try {
+        const player = await getPlayer(telegramId);
+        if (!player) { await ctx.editMessageText("❌ Ошибка. Начни с /start"); return; }
 
-    if (data === "combat_next") {
-      pendingAttack.set(telegramId, "");
-      await ctx.editMessageText("🎯 Выбери зону <b>атаки</b>:", {
-        parse_mode: "HTML",
-        reply_markup: attackKeyboard(),
-      });
+        const session = await getCombatSession(telegramId);
+        if (!session) {
+          await ctx.editMessageText("⚠️ Бой не найден в БД. Начни новый поход.", { reply_markup: mainMenuKeyboard() });
+          return;
+        }
+
+        pendingAttack.set(telegramId, "");
+        await ctx.editMessageText("🎯 Выбери зону <b>атаки</b>:", {
+          parse_mode: "HTML",
+          reply_markup: attackKeyboard(),
+        });
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "combat_start error");
+        await ctx.editMessageText("❌ Ошибка. Попробуй /start.").catch(() => {});
+      }
       return;
     }
 
@@ -318,27 +306,28 @@ export function registerHandlers(bot: Bot) {
     }
 
     if (data.startsWith("blk_")) {
-      const idx = parseInt(data.replace("blk_", ""));
-      const blockZones: [string, string][] = [
-        ["голова", "грудь"],
-        ["грудь", "живот"],
-        ["живот", "пояс"],
-        ["пояс", "ноги"],
-        ["ноги", "голова"],
-      ];
-      if (idx >= 0 && idx < blockZones.length) {
+      try {
+        const idx = parseInt(data.replace("blk_", ""));
+        const blockZones: [string, string][] = [
+          ["голова", "грудь"],
+          ["грудь", "живот"],
+          ["живот", "пояс"],
+          ["пояс", "ноги"],
+          ["ноги", "голова"],
+        ];
+        if (idx < 0 || idx >= blockZones.length) return;
+
         const attackZone = pendingAttack.get(telegramId) || "грудь";
         const blockZone = blockZones[idx];
         pendingAttack.delete(telegramId);
 
         const player = await getPlayer(telegramId);
-        if (!player) return;
+        if (!player) { await ctx.editMessageText("❌ Ошибка. Начни с /start"); return; }
 
-        const state = combatState.get(telegramId);
-        if (!state) {
-          await ctx.editMessageText("⚠️ Ошибка: бой не найден. Начни заново.", {
-            reply_markup: mainMenuKeyboard(),
-          });
+        const session = await getCombatSession(telegramId);
+        if (!session) {
+          await ctx.editMessageText("⚠️ Бой утерян. Твои данные сохранены.", { reply_markup: mainMenuKeyboard() });
+          await endCombat(player.id);
           return;
         }
 
@@ -349,15 +338,15 @@ export function registerHandlers(bot: Bot) {
           player,
           attackZone,
           blockZone,
-          state.monsterHp,
-          state.monsterAttack,
-          state.monsterDefense,
+          session.monsterHp,
+          session.monsterAttack,
+          session.monsterDefense,
           equipStats.bonusAttack,
           equipStats.bonusDefense,
         );
 
-        // Update monster HP in state
-        state.monsterHp = result.monsterNewHp;
+        // Update monster HP in DB session
+        await updateCombatSessionHp(player.id, result.monsterNewHp);
 
         // Update player HP in DB
         await db
@@ -369,8 +358,8 @@ export function registerHandlers(bot: Bot) {
 
         // Check if monster died
         if (result.monsterNewHp <= 0) {
-          const xpGain = state.xpReward + state.monsterLevel * 20;
-          const goldGain = state.goldMin + Math.floor(Math.random() * (state.goldMax - state.goldMin + 1));
+          const xpGain = session.xpReward + session.monsterLevel * 20;
+          const goldGain = session.goldMin + Math.floor(Math.random() * (session.goldMax - session.goldMin + 1));
 
           // Update player
           const updatedPlayer = await getPlayer(telegramId);
@@ -409,21 +398,37 @@ export function registerHandlers(bot: Bot) {
 
           // Check for drop
           let dropText = "";
-          const drop = await checkDrop(state.monsterId);
+          const drop = await checkDrop(session.monsterId);
           if (drop) {
             await addItemToInventory(player.id, drop.id);
             dropText = `\n\n🎁 <b>Трофей:</b> ${drop.name}!`;
           }
 
-          // End combat
-          combatState.delete(telegramId);
+          // Check quest progress
+          let questText = "";
+          const q = await incrementQuestProgress(player.id, session.monsterName);
+          if (q) {
+            if (q.isCompleted) {
+              questText = `\n\n✅ <b>Квест выполнен!</b> 🪙+${q.rewardGold} ✨+${q.rewardXp} XP`;
+              await db
+                .update(players)
+                .set({
+                  gold: newGold + q.rewardGold,
+                  xp: remainingXp + q.rewardXp,
+                })
+                .where(eq(players.id, player.id));
+            } else {
+              questText = `\n📜 Квест: ${q.currentProgress}/${q.targetQuantity}`;
+            }
+          }
+
+          // End combat - clean up session + DB
+          await endCombat(player.id, true);
           await db
             .update(players)
             .set({
-              inCombat: false,
-              combatMonsterId: null,
-              gold: newGold,
-              xp: leveledUp ? remainingXp : newXp,
+              gold: newGold + (questText.includes("Квест выполнен") ? 0 : 0),
+              xp: remainingXp,
               level: newLevel,
               freeStatPoints: newFreePoints,
               currentHp: result.playerNewHp,
@@ -443,8 +448,8 @@ export function registerHandlers(bot: Bot) {
           }
 
           const victoryMsg = `${logText}\n\n🎉 <b>ПОБЕДА!</b>
-🏆 Монстр ${state.monsterName} повержен!
-✨ +${xpGain} XP | 🪙 +${goldGain} золота${dropText}${leveledUp ? `\n\n⬆️ <b>УРОВЕНЬ ${newLevel}!</b> (+5 очков навыков)` : ""}${locationUnlock}`;
+🏆 Монстр ${session.monsterName} повержен!
+✨ +${xpGain} XP | 🪙 +${goldGain} золота${dropText}${questText}${leveledUp ? `\n\n⬆️ <b>УРОВЕНЬ ${newLevel}!</b> (+5 очков навыков)` : ""}${locationUnlock}`;
 
           await ctx.editMessageText(victoryMsg, {
             parse_mode: "HTML",
@@ -455,13 +460,11 @@ export function registerHandlers(bot: Bot) {
 
         // Check if player died
         if (result.playerNewHp <= 0) {
-          combatState.delete(telegramId);
+          await endCombat(player.id, true);
           const maxHp = calculateMaxHp(player);
           await db
             .update(players)
             .set({
-              inCombat: false,
-              combatMonsterId: null,
               currentHp: Math.floor(maxHp / 2), // Respawn with half HP
             })
             .where(eq(players.id, player.id));
@@ -477,36 +480,56 @@ export function registerHandlers(bot: Bot) {
         }
 
         // Combat continues
-        combatState.set(telegramId, state);
-        const continueMsg = `${logText}\n\n👹 <b>${state.monsterName}</b> — ❤️ ${result.monsterNewHp}/${state.monsterMaxHp}`;
+        const continueMsg = `${logText}\n\n👹 <b>${session.monsterName}</b> — ❤️ ${result.monsterNewHp}/${session.monsterMaxHp}`;
 
         await ctx.editMessageText(continueMsg, {
           parse_mode: "HTML",
           reply_markup: continueCombatKeyboard(),
         });
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "combat_round error");
+        await endCombat((await getPlayer(telegramId))?.id || 0, true).catch(() => {});
+        await ctx.editMessageText("❌ Ошибка боя. Возвращаю в главное меню.", { reply_markup: mainMenuKeyboard() }).catch(() => {});
       }
       return;
     }
 
     // ── COMBAT RUN ────────────────────────────────────────────────────
     if (data === "combat_run") {
-      const player = await getPlayer(telegramId);
-      if (!player) return;
+      try {
+        const player = await getPlayer(telegramId);
+        if (!player) return;
 
-      combatState.delete(telegramId);
-      const maxHp = calculateMaxHp(player);
+        // 50% chance to fail escape
+        const escapeRoll = Math.random() < 0.5;
+        if (!escapeRoll) {
+          // Failed escape — instant death
+          await endCombat(player.id, true);
+          const maxHp = calculateMaxHp(player);
+          await db
+            .update(players)
+            .set({
+              currentHp: Math.floor(maxHp / 2),
+            })
+            .where(eq(players.id, player.id));
 
-      await db
-        .update(players)
-        .set({
-          inCombat: false,
-          combatMonsterId: null,
-        })
-        .where(eq(players.id, player.id));
+          await ctx.editMessageText(
+            `💀 <b>Ты пытался сбежать... но споткнулся!</b>\n\nВраг настиг тебя. Ты погиб и восстановился с половиной HP.`,
+            { parse_mode: "HTML", reply_markup: mainMenuKeyboard() },
+          );
+          return;
+        }
 
-      await ctx.editMessageText("🏃 Ты успешно сбежал из боя!", {
-        reply_markup: mainMenuKeyboard(),
-      });
+        // Successful escape
+        await endCombat(player.id, true);
+        await ctx.editMessageText("🏃 Ты успешно сбежал из боя!", {
+          reply_markup: mainMenuKeyboard(),
+        });
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "combat_run error");
+        await endCombat((await getPlayer(telegramId))?.id || 0, true).catch(() => {});
+        await ctx.editMessageText("❌ Ошибка при побеге.", { reply_markup: mainMenuKeyboard() }).catch(() => {});
+      }
       return;
     }
 
@@ -946,6 +969,32 @@ ${item.description ? `📝 ${item.description}` : ""}`;
         return;
       }
 
+      const kb = new InlineKeyboard();
+      if (npc.npcType === "healer") {
+        const maxHp = calculateMaxHp(player);
+        const missing = maxHp - player.currentHp;
+        const cost = missing * (npc.healCostPerHp || 3);
+        const healLabel = player.currentHp >= maxHp
+          ? "❤️ Полное HP"
+          : `❤️ Лечиться (${cost}🪙 за ${missing} HP)`;
+        if (player.currentHp < maxHp) kb.text(healLabel, `npc_heal_${npc.id}`);
+        else kb.text(healLabel, "noop");
+        kb.row();
+      }
+      if (npc.npcType === "quest_giver") {
+        const activeQuest = await getActiveQuest(player.id, npc.id);
+        if (activeQuest) {
+          kb.text(
+            `📜 Квест: ${activeQuest.currentProgress}/${activeQuest.targetQuantity}`,
+            `npc_quest_${npc.id}`,
+          );
+        } else {
+          kb.text("📜 Взять задание", `npc_quest_${npc.id}`);
+        }
+        kb.row();
+      }
+      kb.text("🔙 Назад", "main_menu");
+
       await ctx.editMessageText(
         `🧙‍♂️ <b>${npc.name}</b> — ${npc.title}
 ━━━━━━━━━━━━━━━
@@ -953,8 +1002,126 @@ ${item.description ? `📝 ${item.description}` : ""}`;
 💬 <i>"${npc.greeting}"</i>
 
 💡 <b>Совет:</b> ${npc.advice}`,
-        { parse_mode: "HTML", reply_markup: mainMenuKeyboard() },
+        { parse_mode: "HTML", reply_markup: kb },
       );
+      return;
+    }
+
+    // ── NPC HEAL ──────────────────────────────────────────────────────
+    if (data.startsWith("npc_heal_")) {
+      try {
+        const npcId = parseInt(data.replace("npc_heal_", ""));
+        const player = await getPlayer(telegramId);
+        if (!player) return;
+
+        const npc = (await import("./game")).getNpcForLocation;
+        const allNpcs = await db.query.npcs.findMany({ where: (n, { eq: op }) => op(n.id, npcId) });
+        const healNpc = allNpcs[0];
+        if (!healNpc) return;
+
+        if (healNpc.npcType !== "healer") return;
+
+        const maxHp = calculateMaxHp(player);
+        const missing = maxHp - player.currentHp;
+        if (missing <= 0) {
+          await ctx.answerCallbackQuery({ text: "❤️ У тебя уже полное HP!" });
+          return;
+        }
+
+        const cost = missing * (healNpc.healCostPerHp || 3);
+        if (player.gold < cost) {
+          await ctx.answerCallbackQuery({
+            text: `❌ Недостаточно золота! Нужно ${cost}, у тебя ${player.gold}`,
+          });
+          return;
+        }
+
+        await db
+          .update(players)
+          .set({ currentHp: maxHp, gold: player.gold - cost })
+          .where(eq(players.id, player.id));
+
+        await ctx.answerCallbackQuery({
+          text: `❤️ Исцелён! -${cost}🪙 (${missing} HP восстановлено)`,
+        });
+
+        await ctx.editMessageText(
+          `❤️ <b>Исцеление</b>
+━━━━━━━━━━━━━━━
+
+${healNpc.name} восстановил твоё здоровье!
+-${missing}❤️ → ❤️ ${maxHp}/${maxHp}
+-${cost}🪙
+
+Спасибо ${healNpc.title}!`,
+          { parse_mode: "HTML", reply_markup: mainMenuKeyboard() },
+        );
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "npc_heal error");
+        await ctx.answerCallbackQuery({ text: "❌ Ошибка лечения" });
+      }
+      return;
+    }
+
+    // ── NPC QUEST ─────────────────────────────────────────────────────
+    if (data.startsWith("npc_quest_")) {
+      try {
+        const npcId = parseInt(data.replace("npc_quest_", ""));
+        const player = await getPlayer(telegramId);
+        if (!player) return;
+
+        const allNpcs = await db.query.npcs.findMany({ where: (n, { eq: op }) => op(n.id, npcId) });
+        const questNpc = allNpcs[0];
+        if (!questNpc) return;
+
+        // Check if player already has an active quest from this NPC
+        const activeQuest = await getActiveQuest(player.id, npcId);
+        if (activeQuest) {
+          await ctx.editMessageText(
+            `📜 <b>Текущее задание</b>
+━━━━━━━━━━━━━━━
+
+${questNpc.greeting}
+
+🎯 Убей <b>${activeQuest.targetMonsterName}</b> — ${activeQuest.currentProgress}/${activeQuest.targetQuantity}
+🏆 Награда: ✨ ${activeQuest.rewardXp} XP | 🪙 ${activeQuest.rewardGold} золота`,
+            { parse_mode: "HTML", reply_markup: mainMenuKeyboard() },
+          );
+          return;
+        }
+
+        // Generate quest based on NPC location
+        const locMonsters = await db.query.monsters.findMany({
+          where: (m, { eq: op }) => op(m.locationId, questNpc.locationId),
+          orderBy: (m, { asc }) => asc(m.level),
+        });
+
+        if (locMonsters.length === 0) {
+          await ctx.editMessageText("В этой локации нет монстров для квеста.", { reply_markup: mainMenuKeyboard() });
+          return;
+        }
+
+        // Pick a monster appropriate for the location (mid-level in the zone)
+        const targetMonster = locMonsters[Math.min(2, locMonsters.length - 1)];
+
+        const newQuest = await createQuest(player.id, questNpc, targetMonster.name, questNpc.locationId);
+
+        await ctx.editMessageText(
+          `📜 <b>Новое задание!</b>
+━━━━━━━━━━━━━━━
+
+${questNpc.greeting}
+
+🎯 Задание: Убей <b>${targetMonster.name}</b> — 0/${newQuest.targetQuantity}
+🏆 Награда: ✨ ${newQuest.rewardXp} XP | 🪙 ${newQuest.rewardGold} золота
+
+<i>Возвращайся когда выполнишь!</i>`,
+          { parse_mode: "HTML", reply_markup: mainMenuKeyboard() },
+        );
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "npc_quest error");
+        await ctx.editMessageText("❌ Ошибка выдачи квеста.", { reply_markup: mainMenuKeyboard() });
+      }
       return;
     }
 

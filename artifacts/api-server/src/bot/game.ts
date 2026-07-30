@@ -7,11 +7,16 @@ import {
   locations,
   monsters,
   monsterDrops,
+  quests,
+  npcs,
+  combatSessions,
   type Player,
   type EquipmentItem,
   type Race,
   type Class,
   type EquipmentSlot,
+  type Npc,
+  type Quest,
 } from "@workspace/db";
 
 // ─── RACE BONUSES ────────────────────────────────────────────────────────────
@@ -324,6 +329,120 @@ export async function unequipItem(playerId: number, slot: EquipmentSlot) {
 
   return true;
 }
+
+// ─── COMBAT SESSION HELPERS ─────────────────────────────────────────────
+
+export async function createCombatSession(
+  playerId: number,
+  monster: { id: number; name: string; level: number; baseHp: number; baseAttack: number; baseDefense: number; xpReward: number; goldRewardMin: number; goldRewardMax: number },
+  locationId: number,
+) {
+  const levelMultiplier = monster.level;
+  const currentHp = monster.baseHp + levelMultiplier * 15;
+  const atk = monster.baseAttack + levelMultiplier * 3;
+  const def = monster.baseDefense + levelMultiplier * 1.5;
+
+  const [session] = await db
+    .insert(combatSessions)
+    .values({
+      playerId,
+      monsterId: monster.id,
+      monsterName: monster.name,
+      monsterHp: currentHp,
+      monsterMaxHp: currentHp,
+      monsterAttack: Math.floor(atk),
+      monsterDefense: Math.floor(def),
+      monsterLevel: monster.level,
+      xpReward: monster.xpReward,
+      goldMin: monster.goldRewardMin,
+      goldMax: monster.goldRewardMax,
+      locationId,
+    })
+    .returning();
+
+  return session;
+}
+
+export async function getCombatSession(telegramId: number): Promise<typeof combatSessions.$inferSelect | null> {
+  const player = await getPlayer(telegramId);
+  if (!player) return null;
+  if (!player.inCombat) return null;
+
+  const session = await db.query.combatSessions.findFirst({
+    where: (cs, { eq: op }) => op(cs.playerId, player.id),
+  });
+  return session || null;
+}
+
+export async function updateCombatSessionHp(playerId: number, newHp: number) {
+  await db
+    .update(combatSessions)
+    .set({ monsterHp: newHp })
+    .where(eq(combatSessions.playerId, playerId));
+}
+
+export async function endCombat(playerId: number, cleanupSession = true) {
+  await db
+    .update(players)
+    .set({ inCombat: false, combatMonsterId: null })
+    .where(eq(players.id, playerId));
+  if (cleanupSession) {
+    await db.delete(combatSessions).where(eq(combatSessions.playerId, playerId));
+  }
+}
+
+// ─── QUEST HELPERS ─────────────────────────────────────────────────────
+
+export async function getActiveQuest(playerId: number, npcId: number): Promise<Quest | null> {
+  const q = await db.query.quests.findFirst({
+    where: (qst, { and: andOp, eq: op }) =>
+      andOp(op(qst.playerId, playerId), op(qst.npcId, npcId), op(qst.isCompleted, false)),
+  });
+  return q || null;
+}
+
+export async function getAnyActiveQuest(playerId: number): Promise<Quest | null> {
+  const q = await db.query.quests.findFirst({
+    where: (qst, { and: andOp, eq: op }) =>
+      andOp(op(qst.playerId, playerId), op(qst.isCompleted, false)),
+  });
+  return q || null;
+}
+
+export async function createQuest(playerId: number, npc: Npc, monsterName: string, monsterLocationId: number) {
+  const [q] = await db
+    .insert(quests)
+    .values({
+      playerId,
+      npcId: npc.id,
+      targetMonsterName: monsterName,
+      targetMonsterLocationId: monsterLocationId,
+      targetQuantity: 5,
+      currentProgress: 0,
+      rewardXp: 100 + npc.locationId * 30,
+      rewardGold: 50 + npc.locationId * 20,
+    })
+    .returning();
+  return q;
+}
+
+export async function incrementQuestProgress(playerId: number, monsterName: string): Promise<Quest | null> {
+  const active = await getAnyActiveQuest(playerId);
+  if (!active) return null;
+  if (active.targetMonsterName !== monsterName) return null;
+
+  const newProgress = active.currentProgress + 1;
+  const isCompleted = newProgress >= active.targetQuantity;
+
+  await db
+    .update(quests)
+    .set({ currentProgress: newProgress, isCompleted })
+    .where(eq(quests.id, active.id));
+
+  return { ...active, currentProgress: newProgress, isCompleted };
+}
+
+// ─── FORMAT PROFILE ────────────────────────────────────────────────────
 
 export async function formatPlayerProfile(player: Player): Promise<string> {
   const equip = await loadEquippedStats(player);
