@@ -559,11 +559,11 @@ export type SkillDef = {
 
 export const SKILLS: SkillDef[] = [
   // ── WARRIOR ──
-  { id: "war_r", name: "Мощный удар", description: "Атака с силой: atk × (сила/2)", skillType: "basic", icon: "💥", classRestriction: "warrior" },
+  { id: "war_r", name: "Мощный удар", description: "Урон: (atk×сила)/3", skillType: "basic", icon: "💥", classRestriction: "warrior" },
   { id: "war_s", name: "Пробивающий рывок", description: "Игнорирует блок врага", skillType: "special", icon: "⚡", classRestriction: "warrior" },
   { id: "war_u", name: "Смертельный вихрь", description: "Атакует 3 зоны сразу", skillType: "ultimate", icon: "🌀", classRestriction: "warrior" },
   // ── MAGE ──
-  { id: "mag_r", name: "Огненный шар", description: "Атака с силой: atk × (инт/2)", skillType: "basic", icon: "🔥", classRestriction: "mage" },
+  { id: "mag_r", name: "Огненный шар", description: "Урон: (atk×инт)/3", skillType: "basic", icon: "🔥", classRestriction: "mage" },
   { id: "mag_s", name: "Ледяная игла", description: "Игнорирует блок врага", skillType: "special", icon: "❄️", classRestriction: "mage" },
   { id: "mag_u", name: "Цепная молния", description: "Атакует все 5 зон разом!", skillType: "ultimate", icon: "⚡", classRestriction: "mage" },
   // ── ARCHER ──
