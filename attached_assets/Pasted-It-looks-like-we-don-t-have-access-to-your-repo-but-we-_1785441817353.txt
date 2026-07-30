@@ -1,0 +1,35 @@
+It looks like we don't have access to your repo, but we'll try to clone it anyway.
+==> Cloning from https://github.com/derionkelel-droid/derion-rep
+==> Checking out commit 937282d228cf228a05d8460769af8751952a90e6 in branch main
+==> Using Node.js version 24.14.1 (default)
+==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+==> Running build command 'npm config set prefix /tmp/npm && npm install -g pnpm && /tmp/npm/bin/pnpm install --frozen-lockfile && /tmp/npm/bin/pnpm --filter @workspace/api-server run build'...
+added 1 package in 1s
+1 package is looking for funding
+  run `npm fund` for details
+Scope: all 8 workspace projects
+? Verifying lockfile against supply-chain policies (475 entries)...
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +473
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 473, reused 0, downloaded 0, added 0
+✓ Lockfile passes supply-chain policies (475 entries in 2s)
+Progress: resolved 473, reused 0, downloaded 60, added 0
+Packages are hard linked from the content-addressable store to the virtual store.
+  Content-addressable store is at: /opt/render/.local/share/pnpm/store/v11
+  Virtual store is at:             node_modules/.pnpm
+Progress: resolved 473, reused 0, downloaded 202, added 12
+Progress: resolved 473, reused 0, downloaded 473, added 310
+Progress: resolved 473, reused 0, downloaded 473, added 473, done
+dependencies:
++ @replit/connectors-sdk 0.4.1
+devDependencies:
++ prettier 3.9.6
++ typescript 5.9.3
+. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+. preinstall: Done
+[ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: esbuild@0.27.3
+Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.
+==> Build failed 😞
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
