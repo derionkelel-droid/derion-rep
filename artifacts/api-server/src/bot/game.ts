@@ -850,17 +850,13 @@ export const ACHIEVEMENTS: AchievementDef[] = [
 
 export async function checkAndUnlockAchievement(player: Player, ctx: { kills: number; deaths: number; level: number; gold: number; survivedWith1Hp?: boolean }): Promise<string[]> {
   const unlocked = await db.query.playerAchievements.findMany({
-    where: (pa, { eq: op }) => eq(op(pa.playerId), player.id),
+    where: (pa, { eq: op }) => op(pa.playerId, player.id),
   });
   const unlockedKeys = new Set(unlocked.map((a) => a.achievementKey));
   const newAchievements: string[] = [];
 
   for (const ach of ACHIEVEMENTS) {
     if (unlockedKeys.has(ach.key)) continue;
-    // Special check for survivor
-    if (ach.key === "survivor" && ctx.survivedWith1Hp) {
-      // manually handled
-    }
     if (ach.check(player, ctx)) {
       await db.insert(playerAchievements).values({ playerId: player.id, achievementKey: ach.key });
       await db.update(players).set({ diamonds: player.diamonds + ach.rewardDiamonds }).where(eq(players.id, player.id));
@@ -873,7 +869,7 @@ export async function checkAndUnlockAchievement(player: Player, ctx: { kills: nu
 
 export async function getPlayerAchievements(playerId: number): Promise<{ def: AchievementDef; unlockedAt: Date | null }[]> {
   const unlocked = await db.query.playerAchievements.findMany({
-    where: (pa, { eq: op }) => eq(op(pa.playerId), playerId),
+    where: (pa, { eq: op }) => op(pa.playerId, playerId),
   });
   const unlockedMap = new Map(unlocked.map((a) => [a.achievementKey, a.unlockedAt]));
   return ACHIEVEMENTS.map((def) => ({
