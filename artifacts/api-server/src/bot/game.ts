@@ -811,7 +811,8 @@ export async function formatPlayerProfile(player: Player): Promise<string> {
 ━━━━━━━━━━━━━━━
 ${getRaceName(player.race as Race)} | ${getClassName(player.class as Class)}
 Уровень: ${player.level} | XP: ${player.xp}/${xpNeeded} (${xpProgress}%)
-Монет: 🪙 ${player.gold}
+Монет: 🪙 ${player.gold} | 💎 ${player.diamonds}
+📊 Статистика: 🏆 убито ${player.totalKills} | 💀 смертей ${player.totalDeaths}
 
 📊 <b>Характеристики:</b>
 ⚔️ Атака: ${atk} | 🛡️ Защита: ${def}
@@ -822,3 +823,195 @@ ${getRaceName(player.race as Race)} | ${getClassName(player.class as Class)}
 ❤️‍🔥 Живучесть: ${player.vitality}
 ${player.freeStatPoints > 0 ? `\n✨ Свободных очков: ${player.freeStatPoints}` : ""}${equipStr}${effectsStr}`;
 }
+
+// ─── ACHIEVEMENTS ──────────────────────────────────────────────────────
+
+export type AchievementDef = {
+  key: string;
+  name: string;
+  description: string;
+  icon: string;
+  rewardDiamonds: number;
+  check: (player: Player, params: { kills: number; deaths: number; level: number; inventoryCount?: number; gold: number }) => boolean;
+};
+
+export const ACHIEVEMENTS: AchievementDef[] = [
+  { key: "first_kill", name: "Первая кровь", description: "Убить первого монстра", icon: "⚔️", rewardDiamonds: 5, check: (_, { kills }) => kills >= 1 },
+  { key: "first_death", name: "Первое падение", description: "Умереть впервые", icon: "💀", rewardDiamonds: 3, check: (_, { deaths }) => deaths >= 1 },
+  { key: "killer_10", name: "Охотник", description: "Убить 10 монстров", icon: "🏆", rewardDiamonds: 10, check: (_, { kills }) => kills >= 10 },
+  { key: "killer_50", name: "Массовый убийца", description: "Убить 50 монстров", icon: "🏆", rewardDiamonds: 25, check: (_, { kills }) => kills >= 50 },
+  { key: "killer_100", name: "Легендарный охотник", description: "Убить 100 монстров", icon: "👑", rewardDiamonds: 50, check: (_, { kills }) => kills >= 100 },
+  { key: "level_5", name: "Середина пути", description: "Достичь 5 уровня", icon: "⭐", rewardDiamonds: 10, check: (_, { level }) => level >= 5 },
+  { key: "level_10", name: "Ветеран", description: "Достичь 10 уровня", icon: "⭐", rewardDiamonds: 25, check: (_, { level }) => level >= 10 },
+  { key: "level_20", name: "Мастер", description: "Достичь 20 уровня", icon: "🌟", rewardDiamonds: 50, check: (_, { level }) => level >= 20 },
+  { key: "rich", name: "Богач", description: "Накопить 1000 золота", icon: "💰", rewardDiamonds: 15, check: (_, { gold }) => gold >= 1000 },
+  { key: "survivor", name: "Живучий", description: "Выжить с 1 HP", icon: "❤️‍🔥", rewardDiamonds: 15, check: (_, { }) => false }, // checked manually in combat
+];
+
+export async function checkAndUnlockAchievement(player: Player, ctx: { kills: number; deaths: number; level: number; gold: number; survivedWith1Hp?: boolean }): Promise<string[]> {
+  const unlocked = await db.query.playerAchievements.findMany({
+    where: (pa, { eq: op }) => eq(op(pa.playerId), player.id),
+  });
+  const unlockedKeys = new Set(unlocked.map((a) => a.achievementKey));
+  const newAchievements: string[] = [];
+
+  for (const ach of ACHIEVEMENTS) {
+    if (unlockedKeys.has(ach.key)) continue;
+    // Special check for survivor
+    if (ach.key === "survivor" && ctx.survivedWith1Hp) {
+      // manually handled
+    }
+    if (ach.check(player, ctx)) {
+      await db.insert(playerAchievements).values({ playerId: player.id, achievementKey: ach.key });
+      await db.update(players).set({ diamonds: player.diamonds + ach.rewardDiamonds }).where(eq(players.id, player.id));
+      newAchievements.push(`${ach.icon} <b>${ach.name}</b> — ${ach.rewardDiamonds}💎\n${ach.description}`);
+    }
+  }
+
+  return newAchievements;
+}
+
+export async function getPlayerAchievements(playerId: number): Promise<{ def: AchievementDef; unlockedAt: Date | null }[]> {
+  const unlocked = await db.query.playerAchievements.findMany({
+    where: (pa, { eq: op }) => eq(op(pa.playerId), playerId),
+  });
+  const unlockedMap = new Map(unlocked.map((a) => [a.achievementKey, a.unlockedAt]));
+  return ACHIEVEMENTS.map((def) => ({
+    def,
+    unlockedAt: unlockedMap.get(def.key) || null,
+  }));
+}
+
+// ─── LOOT BOXES ────────────────────────────────────────────────────────
+
+type LootBoxItem = {
+  name: string;
+  description: string;
+  icon: string;
+  type: "equipment" | "gold" | "diamonds" | "potion_effect";
+  itemId?: number; // for equipment
+  quantity?: number; // for gold/diamonds
+  effectType?: EffectType;
+  magnitude?: number;
+  durationMinutes?: number;
+};
+
+type LootBoxSlot = {
+  items: LootBoxItem[];
+  weight: number; // probability weight
+};
+
+const LOOT_BOX_CONTENTS: LootBoxSlot[] = [
+  // Common (50%)
+  {
+    weight: 50,
+    items: [
+      { name: "Зелье силы", description: "+5 атаки на 30 мин", icon: "⚗️", type: "potion_effect", effectType: "atk_boost", magnitude: 5, durationMinutes: 30 },
+      { name: "Зелье защиты", description: "+5 защиты на 30 мин", icon: "⚗️", type: "potion_effect", effectType: "def_boost", magnitude: 5, durationMinutes: 30 },
+      { name: "Зелье здоровья", description: "+20 HP на 30 мин", icon: "⚗️", type: "potion_effect", effectType: "hp_regen", magnitude: 20, durationMinutes: 30 },
+      { name: "10 золота", description: "", icon: "🪙", type: "gold", quantity: 10 },
+      { name: "20 золота", description: "", icon: "🪙", type: "gold", quantity: 20 },
+    ],
+  },
+  // Rare (30%)
+  {
+    weight: 30,
+    items: [
+      { name: "50 золота", description: "", icon: "🪙", type: "gold", quantity: 50 },
+      { name: "2 алмаза", description: "", icon: "💎", type: "diamonds", quantity: 2 },
+      { name: "5 алмазов", description: "", icon: "💎", type: "diamonds", quantity: 5 },
+    ],
+  },
+  // Epic (15%)
+  {
+    weight: 15,
+    items: [
+      { name: "100 золота", description: "", icon: "🪙", type: "gold", quantity: 100 },
+      { name: "10 алмазов", description: "", icon: "💎", type: "diamonds", quantity: 10 },
+      { name: "Зелье ярости", description: "+3 всего на 30 мин", icon: "💥", type: "potion_effect", effectType: "berserk", magnitude: 3, durationMinutes: 30 },
+    ],
+  },
+  // Legendary (5%)
+  {
+    weight: 5,
+    items: [
+      { name: "25 алмазов", description: "", icon: "💎", type: "diamonds", quantity: 25 },
+      { name: "500 золота", description: "", icon: "🪙", type: "gold", quantity: 500 },
+    ],
+  },
+];
+
+export function rollLootBox(): LootBoxItem {
+  const totalWeight = LOOT_BOX_CONTENTS.reduce((s, slot) => s + slot.weight, 0);
+  let roll = Math.random() * totalWeight;
+  for (const slot of LOOT_BOX_CONTENTS) {
+    roll -= slot.weight;
+    if (roll <= 0) {
+      return slot.items[Math.floor(Math.random() * slot.items.length)];
+    }
+  }
+  return LOOT_BOX_CONTENTS[0].items[0];
+}
+
+export async function openLootBox(player: Player): Promise<LootBoxItem> {
+  const item = rollLootBox();
+
+  switch (item.type) {
+    case "gold":
+      await db.update(players).set({ gold: player.gold + (item.quantity || 0) }).where(eq(players.id, player.id));
+      break;
+    case "diamonds":
+      await db.update(players).set({ diamonds: player.diamonds + (item.quantity || 0) }).where(eq(players.id, player.id));
+      break;
+    case "potion_effect":
+      if (item.effectType && item.magnitude && item.durationMinutes) {
+        await createEffect(player.id, item.effectType, item.magnitude, item.durationMinutes);
+      }
+      break;
+    case "equipment":
+      // not implemented yet — just give gold as fallback
+      await db.update(players).set({ gold: player.gold + 50 }).where(eq(players.id, player.id));
+      break;
+  }
+
+  return item;
+}
+
+// ─── CLASS RESET ───────────────────────────────────────────────────────
+
+export const CLASS_RESET_COST = 500;
+
+export async function resetClass(player: Player, newClass: Class): Promise<void> {
+  const c = newClass;
+  const baseStats = getClassBaseStats(c);
+  const raceB = getRaceBonuses(player.race as Race);
+
+  // Keep current level, recalculate stats for new class
+  const newStr = baseStats.str + raceB.str;
+  const newAgi = baseStats.agi + raceB.agi;
+  const newInt = baseStats.int + raceB.int;
+  const newVit = baseStats.vit + raceB.vit;
+
+  await db
+    .update(players)
+    .set({
+      class: c,
+      gold: player.gold - CLASS_RESET_COST,
+      strength: newStr,
+      agility: newAgi,
+      intelligence: newInt,
+      vitality: newVit,
+      freeStatPoints: player.freeStatPoints,
+    })
+    .where(eq(players.id, player.id));
+}
+
+// ─── TG STARS SHOP ─────────────────────────────────────────────────────
+
+export const DIAMOND_PACKS = [
+  { diamonds: 25, stars: 100, label: "25 💎" },
+  { diamonds: 100, stars: 400, label: "100 💎" },
+] as const;
+
+export const LOOT_BOX_PRICE = 20; // diamonds
+export const LOOT_BOX_LABEL = "🎁 Лутбокс";

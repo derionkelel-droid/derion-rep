@@ -3,3 +3,4 @@
 - [NPC types](npc-types.md) — advisor/healer/quest_giver/junk_buyer with dynamic inline actions
 - [Quest tracking](quest-tracking.md) — quest progress auto-incremented on monster kill via DB table
 - [Project Reference](project-reference.md) — full architecture, data model, callback convention, all tables, key patterns & gotchas
+- [Menu / Achievements / Shop](menu-achievements-shop.md) — menu system, achievements (diamond rewards), stats display, class reset (500🪙), diamond shop (TG Stars), loot boxes (20💎)

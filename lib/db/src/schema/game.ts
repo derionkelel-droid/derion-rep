@@ -91,6 +91,9 @@ export const players = pgTable("players", {
   equippedFeetId: integer("equipped_feet_id"),
   equippedAccessoryId: integer("equipped_accessory_id"),
 
+  diamonds: integer("diamonds").notNull().default(0),
+  totalKills: integer("total_kills").notNull().default(0),
+  totalDeaths: integer("total_deaths").notNull().default(0),
   inCombat: boolean("in_combat").notNull().default(false),
   combatMonsterId: integer("combat_monster_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -280,6 +283,19 @@ export const junkInventory = pgTable("junk_inventory", {
 export const insertJunkInventorySchema = createInsertSchema(junkInventory).omit({ id: true });
 export type InsertJunkInventory = z.infer<typeof insertJunkInventorySchema>;
 export type JunkInventory = typeof junkInventory.$inferSelect;
+
+// ─── PLAYER ACHIEVEMENTS ───────────────────────────────────────────────
+
+export const playerAchievements = pgTable("player_achievements", {
+  id: serial("id").primaryKey(),
+  playerId: integer("player_id")
+    .notNull()
+    .references(() => players.id, { onDelete: "cascade" }),
+  achievementKey: text("achievement_key").notNull(),
+  unlockedAt: timestamp("unlocked_at").notNull().defaultNow(),
+});
+
+export type PlayerAchievement = typeof playerAchievements.$inferSelect;
 
 // ─── PLAYER EFFECTS (temporary potion buffs) ────────────────────────────
 export const effectTypes = ["atk_boost", "def_boost", "hp_regen", "berserk"] as const;

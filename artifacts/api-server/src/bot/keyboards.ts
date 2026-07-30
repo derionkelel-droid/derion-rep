@@ -10,7 +10,42 @@ export function mainMenuKeyboard() {
     .text("👤 Профиль", "profile")
     .text("🗺 Локации", "locations")
     .row()
-    .text("🧑‍🤝‍🧑 Жители", "npc");
+    .text("🧑‍🤝‍🧑 Жители", "npc")
+    .text("📋 Меню", "menu");
+}
+
+export function menuKeyboard() {
+  return new InlineKeyboard()
+    .text("🏆 Достижения", "achievements")
+    .text("📊 Статистика", "stats")
+    .row()
+    .text("🏪 Магазин", "shop")
+    .row()
+    .text("🔙 Назад", "main_menu");
+}
+
+export function achievementsKeyboard(unlockedKeys: Set<string>) {
+  const kb = new InlineKeyboard();
+  // No inline actions per achievement — just list
+  kb.text("🔙 Назад", "menu");
+  return kb;
+}
+
+export function statsKeyboard() {
+  return new InlineKeyboard()
+    .text("🔄 Сменить класс (500🪙)", "class_reset")
+    .row()
+    .text("🔙 Назад", "menu");
+}
+
+export function shopKeyboard(diamonds = 0) {
+  return new InlineKeyboard()
+    .text("25💎 — 100⭐", "buy_diamonds_25")
+    .text("100💎 — 400⭐", "buy_diamonds_100")
+    .row()
+    .text(`🎁 Лутбокс (20💎)`, "buy_lootbox")
+    .row()
+    .text("🔙 Назад", "menu");
 }
 
 export function raceKeyboard() {
@@ -121,7 +156,7 @@ export function equipActionKeyboard(itemId: number, isEquipped: boolean) {
   return kb;
 }
 
-export function shopKeyboard(items: { id: number; name: string; price: number }[], page = 0) {
+export function locationShopKeyboard(items: { id: number; name: string; price: number }[], page = 0) {
   const perPage = 6;
   const totalPages = Math.ceil(items.length / perPage) || 1;
   const pageItems = items.slice(page * perPage, (page + 1) * perPage);

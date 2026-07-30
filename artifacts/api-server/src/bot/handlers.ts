@@ -1,5 +1,5 @@
 import { Bot, Context, InlineKeyboard } from "grammy";
-import { db, players, combatSessions } from "@workspace/db";
+import { db, players, playerAchievements, combatSessions } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import {
@@ -46,11 +46,24 @@ import {
   getClassSkills,
   canUseSkill,
   calculateSkillDamage,
+  ACHIEVEMENTS,
+  checkAndUnlockAchievement,
+  getPlayerAchievements,
+  CLASS_RESET_COST,
+  resetClass,
+  openLootBox,
+  LOOT_BOX_PRICE,
+  DIAMOND_PACKS,
   type Player,
+  type Class,
   type SkillType,
 } from "./game";
 import {
   mainMenuKeyboard,
+  menuKeyboard,
+  achievementsKeyboard,
+  statsKeyboard,
+  shopKeyboard,
   raceKeyboard,
   classKeyboard,
   attackKeyboard,
@@ -58,7 +71,7 @@ import {
   continueCombatKeyboard,
   inventoryKeyboard,
   equipActionKeyboard,
-  shopKeyboard,
+  locationShopKeyboard,
   locationsKeyboard,
   combatActionSelectionKeyboard,
 } from "./keyboards";
@@ -157,6 +170,35 @@ export function registerHandlers(bot: Bot) {
     // ── CLASS SELECTION ───────────────────────────────────────────────
     if (data.startsWith("class_")) {
       const c = data.replace("class_", "");
+
+      // Check if this is a class reset
+      const isReset = pendingAttack.get(telegramId) === "class_reset";
+      if (isReset) {
+        pendingAttack.delete(telegramId);
+        const player = await getPlayer(telegramId);
+        if (!player) return;
+        if (player.gold < CLASS_RESET_COST) {
+          await ctx.editMessageText("❌ Недостаточно золота для смены класса!", { reply_markup: statsKeyboard() });
+          return;
+        }
+        await resetClass(player, c as Class);
+        const updated = await getPlayer(telegramId);
+        const maxHp = calculateMaxHp(updated!);
+        await db.update(players).set({ maxHp, currentHp: maxHp }).where(eq(players.id, player.id));
+
+        await ctx.editMessageText(
+          `🔄 <b>Класс изменён!</b>
+
+Ты теперь: ${getClassName(c as any)}
+Уровень сохранён: ${player.level}
+-${CLASS_RESET_COST}🪙
+
+<i>Характеристики пересчитаны под новый класс.</i>`,
+          { parse_mode: "HTML", reply_markup: mainMenuKeyboard() },
+        );
+        return;
+      }
+
       const nickname = await ctx.session?.get("pending_nickname");
       const race = await ctx.session?.get("pending_race");
       if (!nickname || !race) {
@@ -213,6 +255,222 @@ export function registerHandlers(bot: Bot) {
         `Главное меню, ${player.nickname} 🎮`,
         { reply_markup: mainMenuKeyboard() },
       );
+      return;
+    }
+
+    // ── MENU ──────────────────────────────────────────────────────────
+    if (data === "menu") {
+      const player = await getPlayer(telegramId);
+      if (!player) return;
+      await ctx.editMessageText(
+        `📋 <b>Меню</b>\n\nВыбери раздел:`,
+        { parse_mode: "HTML", reply_markup: menuKeyboard() },
+      );
+      return;
+    }
+
+    // ── ACHIEVEMENTS ──────────────────────────────────────────────────
+    if (data === "achievements") {
+      try {
+        const player = await getPlayer(telegramId);
+        if (!player) return;
+
+        const achievements = await getPlayerAchievements(player.id);
+        let msg = `🏆 <b>Достижения</b>\n━━━━━━━━━━━━━━━\n\n`;
+        let unlockedCount = 0;
+
+        for (const a of achievements) {
+          const status = a.unlockedAt ? `✅` : `🔒`;
+          if (a.unlockedAt) unlockedCount++;
+          msg += `${status} ${a.def.icon} <b>${a.def.name}</b>\n`;
+          msg += `   ${a.def.description}\n`;
+          if (a.unlockedAt) {
+            const date = new Date(a.unlockedAt).toLocaleDateString("ru-RU");
+            msg += `   🎁 +${a.def.rewardDiamonds}💎 (${date})\n`;
+          } else {
+            msg += `   🎁 ${a.def.rewardDiamonds}💎\n`;
+          }
+          msg += `\n`;
+        }
+
+        msg += `━━━━━━━━━━━━━━━\n`;
+        msg += `Разблокировано: ${unlockedCount}/${ACHIEVEMENTS.length}`;
+
+        await ctx.editMessageText(msg, {
+          parse_mode: "HTML",
+          reply_markup: new InlineKeyboard().text("🔙 Назад", "menu"),
+        });
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "achievements error");
+        await ctx.editMessageText("❌ Ошибка загрузки достижений.", { reply_markup: menuKeyboard() });
+      }
+      return;
+    }
+
+    // ── STATS ─────────────────────────────────────────────────────────
+    if (data === "stats") {
+      try {
+        const player = await getPlayer(telegramId);
+        if (!player) return;
+
+        const msg = `📊 <b>Статистика</b>
+━━━━━━━━━━━━━━━
+
+🏆 Всего убито монстров: <b>${player.totalKills}</b>
+💀 Всего смертей: <b>${player.totalDeaths}</b>
+💎 Алмазов: <b>${player.diamonds}</b>
+🪙 Золота: <b>${player.gold}</b>
+🎯 Уровень: <b>${player.level}</b>
+
+━━━━━━━━━━━━━━━
+🔄 Сменить класс — <b>${CLASS_RESET_COST}🪙</b>
+Характеристики и экипировка сбросятся, уровень сохранится.`;
+
+        await ctx.editMessageText(msg, {
+          parse_mode: "HTML",
+          reply_markup: statsKeyboard(),
+        });
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "stats error");
+        await ctx.editMessageText("❌ Ошибка загрузки статистики.", { reply_markup: menuKeyboard() });
+      }
+      return;
+    }
+
+    // ── CLASS RESET ───────────────────────────────────────────────────
+    if (data === "class_reset") {
+      try {
+        const player = await getPlayer(telegramId);
+        if (!player) return;
+
+        if (player.gold < CLASS_RESET_COST) {
+          await ctx.editMessageText(
+            `❌ Недостаточно золота! Нужно: ${CLASS_RESET_COST}🪙 (у тебя ${player.gold}🪙)`,
+            { reply_markup: statsKeyboard() },
+          );
+          return;
+        }
+
+        // Show class selection for reset
+        await ctx.editMessageText(
+          `🔄 <b>Выбор нового класса</b>\n\nВыбери новый класс (${CLASS_RESET_COST}🪙):\n\n<i>Уровень сохранится, но характеристики и экипировка сбросятся под новый класс.</i>`,
+          { parse_mode: "HTML", reply_markup: classKeyboard() },
+        );
+
+        // Mark pending class reset
+        pendingAttack.set(telegramId, "class_reset");
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "class_reset error");
+        await ctx.editMessageText("❌ Ошибка.", { reply_markup: menuKeyboard() });
+      }
+      return;
+    }
+
+    // ── SHOP ──────────────────────────────────────────────────────────
+    if (data === "shop") {
+      try {
+        const player = await getPlayer(telegramId);
+        if (!player) return;
+
+        const msg = `🏪 <b>Магазин</b>
+━━━━━━━━━━━━━━━
+
+💎 Твой баланс: <b>${player.diamonds}</b>
+
+━━━━━━━━━━━━━━━
+<b>💎 Алмазы (Telegram Stars):</b>
+25💎 — 100⭐
+100💎 — 400⭐
+
+<b>🎁 Лутбоксы:</b>
+${LOOT_BOX_PRICE}💎 за штуку
+Случайный приз: золото, алмазы или зелья!`;
+
+        await ctx.editMessageText(msg, {
+          parse_mode: "HTML",
+          reply_markup: shopKeyboard(player.diamonds),
+        });
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "shop error");
+        await ctx.editMessageText("❌ Ошибка магазина.", { reply_markup: menuKeyboard() });
+      }
+      return;
+    }
+
+    // ── BUY DIAMONDS (TG Stars) ──────────────────────────────────────
+    if (data === "buy_diamonds_25" || data === "buy_diamonds_100") {
+      try {
+        const diamonds = data === "buy_diamonds_25" ? 25 : 100;
+        const pack = DIAMOND_PACKS.find((p) => p.diamonds === diamonds);
+        if (!pack) return;
+
+        // Send Telegram Stars invoice
+        await ctx.api.sendInvoice(
+          ctx.chat!.id,
+          `${pack.diamonds} 💎 Алмазов`,
+          `Пополнение алмазов: ${pack.diamonds}💎 за ${pack.stars}⭐`,
+          `diamond_pack_${pack.diamonds}`, // payload
+          "XTR", // currency for Telegram Stars
+          [{ label: `${pack.diamonds} 💎`, amount: pack.stars }],
+        );
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "buy_diamonds error");
+        await ctx.answerCallbackQuery({ text: "❌ Ошибка отправки счёта" });
+      }
+      return;
+    }
+
+    // ── BUY LOOTBOX ──────────────────────────────────────────────────
+    if (data === "buy_lootbox") {
+      try {
+        const player = await getPlayer(telegramId);
+        if (!player) return;
+
+        if (player.diamonds < LOOT_BOX_PRICE) {
+          await ctx.answerCallbackQuery({ text: `❌ Недостаточно 💎! Нужно ${LOOT_BOX_PRICE}💎` });
+          return;
+        }
+
+        // Deduct diamonds
+        await db
+          .update(players)
+          .set({ diamonds: player.diamonds - LOOT_BOX_PRICE })
+          .where(eq(players.id, player.id));
+
+        const reward = await openLootBox(player);
+
+        let rewardDesc = "";
+        switch (reward.type) {
+          case "gold":
+            rewardDesc = `🪙 +${reward.quantity} золота`;
+            break;
+          case "diamonds":
+            rewardDesc = `💎 +${reward.quantity} алмазов`;
+            break;
+          case "potion_effect":
+            rewardDesc = `⚗️ ${reward.name} — ${reward.description}`;
+            break;
+          case "equipment":
+            rewardDesc = `🎁 ${reward.name}`;
+            break;
+        }
+
+        const updatedPlayer = await getPlayer(telegramId);
+
+        await ctx.editMessageText(
+          `🎁 <b>Лутбокс открыт!</b>
+━━━━━━━━━━━━━━━
+
+${reward.icon} <b>${reward.name}</b>
+${rewardDesc}
+
+💎 Осталось: ${updatedPlayer?.diamonds || 0}💎`,
+          { parse_mode: "HTML", reply_markup: shopKeyboard(updatedPlayer?.diamonds || 0) },
+        );
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "buy_lootbox error");
+        await ctx.editMessageText("❌ Ошибка открытия лутбокса.", { reply_markup: menuKeyboard() });
+      }
       return;
     }
 
@@ -548,6 +806,7 @@ export function registerHandlers(bot: Bot) {
               level: newLevel,
               freeStatPoints: newFreePoints,
               currentHp: result.playerNewHp,
+              totalKills: (updatedPlayer.totalKills || 0) + 1,
             })
             .where(eq(players.id, player.id));
 
@@ -568,9 +827,24 @@ export function registerHandlers(bot: Bot) {
           const curMisses = (session.misses || 0) + (wasMiss ? 1 : 0);
           const statsLine = `🗡️${curHits} 🛡️${curBlocks} 💨${curMisses}`;
 
+          // Check achievements
+          const finalPlayer = await getPlayer(telegramId);
+          let achievementText = "";
+          if (finalPlayer) {
+            const newAch = await checkAndUnlockAchievement(finalPlayer, {
+              kills: finalPlayer.totalKills || 1,
+              deaths: finalPlayer.totalDeaths || 0,
+              level: finalPlayer.level,
+              gold: finalPlayer.gold,
+            });
+            if (newAch.length > 0) {
+              achievementText = `\n\n🏅 <b>Новые достижения!</b>\n${newAch.join("\n\n")}`;
+            }
+          }
+
           const victoryMsg = `${logText}\n📊 Статистика: ${statsLine}\n\n🎉 <b>ПОБЕДА!</b>
 🏆 Монстр ${session.monsterName} повержен!
-✨ +${xpGain} XP | 🪙 +${goldGain} золота${dropText}${junkText}${questText}${leveledUp ? `\n\n⬆️ <b>УРОВЕНЬ ${newLevel}!</b> (+5 очков навыков)` : ""}${locationUnlock}`;
+✨ +${xpGain} XP | 🪙 +${goldGain} золота${dropText}${junkText}${questText}${achievementText}${leveledUp ? `\n\n⬆️ <b>УРОВЕНЬ ${newLevel}!</b> (+5 очков навыков)` : ""}${locationUnlock}`;
 
           await ctx.editMessageText(victoryMsg, {
             parse_mode: "HTML",
@@ -587,6 +861,7 @@ export function registerHandlers(bot: Bot) {
             .update(players)
             .set({
               currentHp: Math.floor(maxHp / 2), // Respawn with half HP
+              totalDeaths: (player.totalDeaths || 0) + 1,
             })
             .where(eq(players.id, player.id));
 
@@ -595,8 +870,23 @@ export function registerHandlers(bot: Bot) {
           const curMissesD = (session.misses || 0) + (wasMiss ? 1 : 0);
           const deathStats = `🗡️${curHitsD} 🛡️${curBlocksD} 💨${curMissesD}`;
 
+          // Check achievements
+          const deadPlayer = await getPlayer(telegramId);
+          let achievementText = "";
+          if (deadPlayer) {
+            const newAch = await checkAndUnlockAchievement(deadPlayer, {
+              kills: deadPlayer.totalKills || 0,
+              deaths: deadPlayer.totalDeaths || 1,
+              level: deadPlayer.level,
+              gold: deadPlayer.gold,
+            });
+            if (newAch.length > 0) {
+              achievementText = `\n\n🏅 <b>Новые достижения!</b>\n${newAch.join("\n\n")}`;
+            }
+          }
+
           const deathMsg = `${logText}\n📊 Статистика: ${deathStats}\n\n💀 <b>Ты погиб...</b>
-Но не отчаивайся — ты восстановился с половиной HP!`;
+Но не отчаивайся — ты восстановился с половиной HP!${achievementText}`;
 
           await ctx.editMessageText(deathMsg, {
             parse_mode: "HTML",
@@ -1651,6 +1941,43 @@ ${questNpc.greeting}
         reply_markup: inventoryKeyboard(kbItems, page),
       });
       return;
+    }
+  });
+
+  // ── TG STARS PAYMENTS ───────────────────────────────────────────────
+  bot.on("pre_checkout_query", async (ctx) => {
+    try {
+      await ctx.api.answerPreCheckoutQuery(ctx.preCheckoutQuery.id, true);
+    } catch (e) {
+      logger.error({ err: e }, "pre_checkout_query error");
+    }
+  });
+
+  bot.on("message:successful_payment", async (ctx) => {
+    try {
+      const telegramId = ctx.from?.id;
+      if (!telegramId) return;
+
+      const payload = ctx.message?.successful_payment?.invoice_payload || "";
+      if (!payload.startsWith("diamond_pack_")) return;
+
+      const diamonds = parseInt(payload.replace("diamond_pack_", ""));
+      if (isNaN(diamonds)) return;
+
+      const player = await getPlayer(telegramId);
+      if (!player) return;
+
+      await db
+        .update(players)
+        .set({ diamonds: (player.diamonds || 0) + diamonds })
+        .where(eq(players.id, player.id));
+
+      await ctx.reply(
+        `💎 <b>Пополнение успешно!</b>\n+${diamonds}💎 алмазов зачислено!\nТеперь у тебя ${player.diamonds + diamonds}💎`,
+        { parse_mode: "HTML" },
+      );
+    } catch (e) {
+      logger.error({ err: e }, "successful_payment error");
     }
   });
 }
