@@ -16,7 +16,7 @@ export type EquipmentSlot = (typeof equipmentSlots)[number];
 export const armorTypes = ["cloth", "leather", "plate", "weapon"] as const;
 export type ArmorType = (typeof armorTypes)[number];
 
-export const npcTypes = ["advisor", "healer", "quest_giver"] as const;
+export const npcTypes = ["advisor", "healer", "quest_giver", "junk_buyer"] as const;
 export type NpcType = (typeof npcTypes)[number];
 
 // ─── LOCATIONS ───────────────────────────────────────────────────────────────
@@ -226,6 +226,58 @@ export const insertQuestSchema = createInsertSchema(quests).omit({ id: true, cre
 export type InsertQuest = z.infer<typeof insertQuestSchema>;
 export type Quest = typeof quests.$inferSelect;
 
+// ─── JUNK ITEMS ──────────────────────────────────────────────────────────
+
+export const junkItems = pgTable("junk_items", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  sellPrice: integer("sell_price").notNull().default(1),
+  locationId: integer("location_id")
+    .notNull()
+    .references(() => locations.id),
+});
+
+export const insertJunkItemSchema = createInsertSchema(junkItems).omit({ id: true });
+export type InsertJunkItem = z.infer<typeof insertJunkItemSchema>;
+export type JunkItem = typeof junkItems.$inferSelect;
+
+// ─── MONSTER JUNK DROPS ─────────────────────────────────────────────────
+
+export const monsterJunkDrops = pgTable("monster_junk_drops", {
+  id: serial("id").primaryKey(),
+  monsterId: integer("monster_id")
+    .notNull()
+    .references(() => monsters.id, { onDelete: "cascade" }),
+  junkItemId: integer("junk_item_id")
+    .notNull()
+    .references(() => junkItems.id),
+  dropChance: decimal("drop_chance", { precision: 4, scale: 1 }).notNull().default("30.0"),
+  minQuantity: integer("min_quantity").notNull().default(1),
+  maxQuantity: integer("max_quantity").notNull().default(3),
+});
+
+export const insertMonsterJunkDropSchema = createInsertSchema(monsterJunkDrops).omit({ id: true });
+export type InsertMonsterJunkDrop = typeof monsterJunkDrops.$inferInsert;
+export type MonsterJunkDrop = typeof monsterJunkDrops.$inferSelect;
+
+// ─── JUNK INVENTORY ──────────────────────────────────────────────────────
+
+export const junkInventory = pgTable("junk_inventory", {
+  id: serial("id").primaryKey(),
+  playerId: integer("player_id")
+    .notNull()
+    .references(() => players.id, { onDelete: "cascade" }),
+  junkItemId: integer("junk_item_id")
+    .notNull()
+    .references(() => junkItems.id),
+  quantity: integer("quantity").notNull().default(1),
+});
+
+export const insertJunkInventorySchema = createInsertSchema(junkInventory).omit({ id: true });
+export type InsertJunkInventory = z.infer<typeof insertJunkInventorySchema>;
+export type JunkInventory = typeof junkInventory.$inferSelect;
+
 // ─── RELATIONS ─────────────────────────────────────────────────────────────
 
 import { relations } from "drizzle-orm";
@@ -250,5 +302,32 @@ export const monsterDropsRelations = relations(monsterDrops, ({ one }) => ({
   item: one(equipmentItems, {
     fields: [monsterDrops.itemId],
     references: [equipmentItems.id],
+  }),
+}));
+
+export const junkItemsRelations = relations(junkItems, ({ many }) => ({
+  monsterDrops: many(monsterJunkDrops),
+  inventoryEntries: many(junkInventory),
+}));
+
+export const monsterJunkDropsRelations = relations(monsterJunkDrops, ({ one }) => ({
+  monster: one(monsters, {
+    fields: [monsterJunkDrops.monsterId],
+    references: [monsters.id],
+  }),
+  junkItem: one(junkItems, {
+    fields: [monsterJunkDrops.junkItemId],
+    references: [junkItems.id],
+  }),
+}));
+
+export const junkInventoryRelations = relations(junkInventory, ({ one }) => ({
+  player: one(players, {
+    fields: [junkInventory.playerId],
+    references: [players.id],
+  }),
+  junkItem: one(junkItems, {
+    fields: [junkInventory.junkItemId],
+    references: [junkItems.id],
   }),
 }));

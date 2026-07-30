@@ -11,7 +11,11 @@ import {
   getNpcForLocation,
   getNpcsForLocation,
   checkDrop,
+  checkJunkDrops,
   addItemToInventory,
+  addJunkToInventory,
+  getJunkInventory,
+  sellAllJunk,
   calculateMaxHp,
   calculateAttack,
   calculateDefense,
@@ -408,6 +412,18 @@ export function registerHandlers(bot: Bot) {
             dropText = `\n\n🎁 <b>Трофей:</b> ${drop.name}!`;
           }
 
+          // Check for junk drops
+          let junkText = "";
+          const junkDrops = await checkJunkDrops(session.monsterId);
+          if (junkDrops.length > 0) {
+            const junkLines: string[] = [];
+            for (const jd of junkDrops) {
+              await addJunkToInventory(player.id, jd.junkItem.id, jd.quantity);
+              junkLines.push(`${jd.junkItem.name} x${jd.quantity}`);
+            }
+            junkText = `\n📦 <b>Трофеи:</b> ${junkLines.join(", ")}`;
+          }
+
           // Check quest progress
           let questText = "";
           const q = await incrementQuestProgress(player.id, session.monsterName);
@@ -453,7 +469,7 @@ export function registerHandlers(bot: Bot) {
 
           const victoryMsg = `${logText}\n\n🎉 <b>ПОБЕДА!</b>
 🏆 Монстр ${session.monsterName} повержен!
-✨ +${xpGain} XP | 🪙 +${goldGain} золота${dropText}${questText}${leveledUp ? `\n\n⬆️ <b>УРОВЕНЬ ${newLevel}!</b> (+5 очков навыков)` : ""}${locationUnlock}`;
+✨ +${xpGain} XP | 🪙 +${goldGain} золота${dropText}${junkText}${questText}${leveledUp ? `\n\n⬆️ <b>УРОВЕНЬ ${newLevel}!</b> (+5 очков навыков)` : ""}${locationUnlock}`;
 
           await ctx.editMessageText(victoryMsg, {
             parse_mode: "HTML",
@@ -1168,17 +1184,104 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
         }
         kb.row();
       }
+      if (npc.npcType === "junk_buyer") {
+        kb.text("💰 Продать хлам", `junk_sell_all`).row();
+        kb.row();
+      }
       kb.text("🔙 Назад", "npc");
+
+      const adviceText = npc.advice ? `\n💡 <b>Совет:</b> ${npc.advice}` : "";
 
       await ctx.editMessageText(
         `🧙‍♂️ <b>${npc.name}</b> — ${npc.title}
 ━━━━━━━━━━━━━━━
 
-💬 <i>"${npc.greeting}"</i>
-
-💡 <b>Совет:</b> ${npc.advice}`,
+💬 <i>"${npc.greeting}"</i>${adviceText}`,
         { parse_mode: "HTML", reply_markup: kb },
       );
+      return;
+    }
+
+    // ── JUNK SELL ──────────────────────────────────────────────────────
+    if (data === "junk_sell_all") {
+      try {
+        const player = await getPlayer(telegramId);
+        if (!player) return;
+
+        const junkInv = await getJunkInventory(player.id);
+        if (junkInv.length === 0) {
+          await ctx.answerCallbackQuery({ text: "📦 У тебя нет хлама для продажи!" });
+          return;
+        }
+
+        // Show confirmation with total value
+        let totalValue = 0;
+        let junkList = "";
+        for (const entry of junkInv) {
+          const value = entry.quantity * entry.junkItem.sellPrice;
+          totalValue += value;
+          junkList += `• ${entry.junkItem.name} x${entry.quantity} — 🪙${value}\n`;
+        }
+
+        const kbConfirm = new InlineKeyboard()
+          .text("✅ Продать всё", "junk_confirm_sell")
+          .text("🔙 Отмена", "npc");
+
+        await ctx.editMessageText(
+          `💰 <b>Скупщик хлама</b>
+━━━━━━━━━━━━━━━
+
+📦 <b>Твой хлам:</b>
+${junkList}
+━━━━━━━━━━━━━━━
+🏷️ <b>Итого:</b> 🪙${totalValue}
+
+<i>Продать всё?</i>`,
+          { parse_mode: "HTML", reply_markup: kbConfirm },
+        );
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "junk_sell_all error");
+        await ctx.answerCallbackQuery({ text: "❌ Ошибка" });
+      }
+      return;
+    }
+
+    // ── JUNK CONFIRM SELL ──────────────────────────────────────────────
+    if (data === "junk_confirm_sell") {
+      try {
+        const player = await getPlayer(telegramId);
+        if (!player) return;
+
+        const result = await sellAllJunk(player.id);
+        if (result.totalGold <= 0) {
+          await ctx.answerCallbackQuery({ text: "📦 Нет хлама для продажи!" });
+          return;
+        }
+
+        await db
+          .update(players)
+          .set({ gold: player.gold + result.totalGold })
+          .where(eq(players.id, player.id));
+
+        let soldList = "";
+        for (const item of result.soldItems) {
+          soldList += `• ${item.name} x${item.qty} — 🪙${item.gold}\n`;
+        }
+
+        await ctx.editMessageText(
+          `💰 <b>Продажа завершена!</b>
+━━━━━━━━━━━━━━━
+
+${soldList}
+━━━━━━━━━━━━━━━
+💰 Получено: 🪙+${result.totalGold}
+🪙 Баланс: ${player.gold + result.totalGold}`,
+          { parse_mode: "HTML", reply_markup: mainMenuKeyboard() },
+        );
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "junk_confirm_sell error");
+        await ctx.answerCallbackQuery({ text: "❌ Ошибка продажи" });
+      }
       return;
     }
 

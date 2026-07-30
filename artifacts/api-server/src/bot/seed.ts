@@ -4,6 +4,8 @@ import {
   equipmentItems,
   monsters,
   monsterDrops,
+  junkItems,
+  monsterJunkDrops,
   npcs,
 } from "@workspace/db";
 import { logger } from "../lib/logger";
@@ -300,7 +302,207 @@ export async function seedGameData() {
     await db.insert(monsterDrops).values(dropValues);
   }
 
-  logger.info({ drops: dropValues.length }, "Game data seeded");
+  // ─── 6. JUNK ITEMS ───────────────────────────────────────────────────
+  await db.insert(junkItems).values([
+    // Loc 1: 🌿 Начальная поляна
+    { name: "Сломанный клык", description: "Тупой обломок кабаньего клыка.", sellPrice: 1, locationId: 1 },
+    { name: "Грубая шкура", description: "Плохо выделанная звериная шкура.", sellPrice: 2, locationId: 1 },
+    { name: "Пушистый хвост", description: "Хвост гигантской крысы.", sellPrice: 1, locationId: 1 },
+    { name: "Щепка лешего", description: "Древесная щепка с остатками магии.", sellPrice: 3, locationId: 1 },
+    // Loc 2: 🌲 Тёмный лес
+    { name: "Медвежий коготь", description: "Острый коготь бурого медведя.", sellPrice: 5, locationId: 2 },
+    { name: "Вампирская пыль", description: "Прах лесного вампира.", sellPrice: 6, locationId: 2 },
+    { name: "Древесная смола", description: "Липкая смола корня-душителя.", sellPrice: 4, locationId: 2 },
+    { name: "Троллья слизь", description: "Вонючая слизь лесного тролля.", sellPrice: 8, locationId: 2 },
+    // Loc 3: 🌊 Болотные топи
+    { name: "Болотная тина", description: "Густая зловонная тина.", sellPrice: 10, locationId: 3 },
+    { name: "Ядовитый пузырь", description: "Пузырь с ядовитым газом.", sellPrice: 12, locationId: 3 },
+    { name: "Крокодилий зуб", description: "Острый зуб болотного крокодила.", sellPrice: 15, locationId: 3 },
+    { name: "Змеиная чешуйка", description: "Мерцающая чешуйка болотной змеи.", sellPrice: 14, locationId: 3 },
+    // Loc 4: 🏔️ Каменистое плато
+    { name: "Каменная крошка", description: "Крошка с каменного голема.", sellPrice: 18, locationId: 4 },
+    { name: "Орлиное перо", description: "Гигантское перо горного орла.", sellPrice: 20, locationId: 4 },
+    { name: "Кристальная пыль", description: "Мерцающая пыль кристального паука.", sellPrice: 22, locationId: 4 },
+    { name: "Горная руда", description: "Кусок руды с примесью драконьей чешуи.", sellPrice: 25, locationId: 4 },
+    // Loc 5: 🏛️ Забытые руины
+    { name: "Костная мука", description: "Мелкий порошок из древних костей.", sellPrice: 28, locationId: 5 },
+    { name: "Эфирный осколок", description: "Осколок призрачной материи.", sellPrice: 30, locationId: 5 },
+    { name: "Ржавое кольцо", description: "Почти рассыпавшееся кольцо рыцаря.", sellPrice: 32, locationId: 5 },
+    { name: "Тёмная эссенция", description: "Сгусток тёмной магии лича.", sellPrice: 35, locationId: 5 },
+    // Loc 6: ❄️ Ледяные вершины
+    { name: "Ледяная стружка", description: "Вечно холодная ледяная крошка.", sellPrice: 38, locationId: 6 },
+    { name: "Снежная пыльца", description: "Пыльца снежного элементаля.", sellPrice: 40, locationId: 6 },
+    { name: "Медвежий мех", description: "Густой тёплый мех белого медведя.", sellPrice: 42, locationId: 6 },
+    { name: "Замёрзшая кровь", description: "Кровь ледяного дракона, застывшая кристаллом.", sellPrice: 45, locationId: 6 },
+    // Loc 7: 🌋 Вулканические недра
+    { name: "Вулканический пепел", description: "Горячий пепел вулканических недр.", sellPrice: 48, locationId: 7 },
+    { name: "Осколок лавы", description: "Засохший кусок лавы.", sellPrice: 50, locationId: 7 },
+    { name: "Демоническая чешуя", description: "Чешуя огненного демона.", sellPrice: 52, locationId: 7 },
+    { name: "Огненная искра", description: "Неугасающая искра вулканической магии.", sellPrice: 55, locationId: 7 },
+    // Loc 8: 🌫️ Туманное ущелье
+    { name: "Сгусток тумана", description: "Материализованный туман ущелья.", sellPrice: 58, locationId: 8 },
+    { name: "Осколок тени", description: "Фрагмент теневой материи.", sellPrice: 60, locationId: 8 },
+    { name: "Разбитый амулет", description: "Остатки амулета павшего рыцаря.", sellPrice: 62, locationId: 8 },
+    { name: "Сгусток тьмы", description: "Чистая эссенция тьмы.", sellPrice: 65, locationId: 8 },
+    // Loc 9: 🔮 Затерянный храм
+    { name: "Древняя табличка", description: "Табличка с забытыми письменами.", sellPrice: 68, locationId: 9 },
+    { name: "Кристалл маны", description: "Кристалл с остатками магии.", sellPrice: 70, locationId: 9 },
+    { name: "Змеиный яд", description: "Яд древней змеи, всё ещё активен.", sellPrice: 72, locationId: 9 },
+    { name: "Священный пепел", description: "Пепел сожжённых подношений.", sellPrice: 75, locationId: 9 },
+    // Loc 10: ✨ Эфирные чертоги
+    { name: "Эфирная пыль", description: "Пыль из эфирного пространства.", sellPrice: 80, locationId: 10 },
+    { name: "Искра хаоса", description: "Искра чистого хаоса.", sellPrice: 85, locationId: 10 },
+    { name: "Звёздная слеза", description: "Текучая материя звезды.", sellPrice: 90, locationId: 10 },
+    { name: "Титанская стружка", description: "Крошка от доспеха эфирного титана.", sellPrice: 95, locationId: 10 },
+  ]);
+
+  // ─── 7. MONSTER JUNK DROPS ───────────────────────────────────────────
+  const allMonsters2 = await db.query.monsters.findMany();
+  const allJunkItems = await db.query.junkItems.findMany();
+  const mobByName2: Record<string, typeof allMonsters2[number]> = {};
+  const junkByName: Record<string, typeof allJunkItems[number]> = {};
+  for (const m of allMonsters2) mobByName2[m.name] = m;
+  for (const j of allJunkItems) junkByName[j.name] = j;
+
+  // Min/max quantities scale by location level
+  const junkDropSpecs: { mobName: string; junkName: string; chance: number; minQty: number; maxQty: number }[] = [
+    // Loc 1: 🌿 Начальная поляна
+    { mobName: "🐗 Злобный кабан", junkName: "Сломанный клык", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🐗 Злобный кабан", junkName: "Грубая шкура", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🕷️ Лесной паук", junkName: "Грубая шкура", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🕷️ Лесной паук", junkName: "Пушистый хвост", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "🐺 Голодный волк", junkName: "Сломанный клык", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "🐺 Голодный волк", junkName: "Грубая шкура", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🐭 Гигантская крыса", junkName: "Пушистый хвост", chance: 60, minQty: 1, maxQty: 2 },
+    { mobName: "🌿 Леший", junkName: "Щепка лешего", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🌿 Леший", junkName: "Древесная смола", chance: 40, minQty: 1, maxQty: 1 },
+    // Loc 2: 🌲 Тёмный лес
+    { mobName: "🐻 Бурый медведь", junkName: "Медвежий коготь", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🐻 Бурый медведь", junkName: "Грубая шкура", chance: 40, minQty: 1, maxQty: 3 },
+    { mobName: "🧛 Лесной вампир", junkName: "Вампирская пыль", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🧛 Лесной вампир", junkName: "Пушистый хвост", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🌳 Корень-душитель", junkName: "Древесная смола", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "🌳 Корень-душитель", junkName: "Щепка лешего", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🦌 Тёмный олень", junkName: "Древесная смола", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🦌 Тёмный олень", junkName: "Медвежий коготь", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🐗 Лесной тролль", junkName: "Троллья слизь", chance: 60, minQty: 1, maxQty: 3 },
+    { mobName: "🐗 Лесной тролль", junkName: "Медвежий коготь", chance: 40, minQty: 1, maxQty: 2 },
+    // Loc 3: 🌊 Болотные топи
+    { mobName: "🐊 Болотный крокодил", junkName: "Крокодилий зуб", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🐊 Болотный крокодил", junkName: "Болотная тина", chance: 40, minQty: 1, maxQty: 3 },
+    { mobName: "🐸 Ядовитая жаба", junkName: "Ядовитый пузырь", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "🐸 Ядовитая жаба", junkName: "Болотная тина", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🌿 Болотный элементаль", junkName: "Болотная тина", chance: 60, minQty: 2, maxQty: 4 },
+    { mobName: "🌿 Болотный элементаль", junkName: "Ядовитый пузырь", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🦟 Рой москитов", junkName: "Крокодилий зуб", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🦟 Рой москитов", junkName: "Болотная тина", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🐍 Болотная змея", junkName: "Змеиная чешуйка", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "🐍 Болотная змея", junkName: "Ядовитый пузырь", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🕷️ Топяной паук", junkName: "Змеиная чешуйка", chance: 45, minQty: 1, maxQty: 2 },
+    { mobName: "🕷️ Топяной паук", junkName: "Болотная тина", chance: 50, minQty: 1, maxQty: 3 },
+    // Loc 4: 🏔️ Каменистое плато
+    { mobName: "🪨 Каменный голем", junkName: "Каменная крошка", chance: 55, minQty: 2, maxQty: 4 },
+    { mobName: "🪨 Каменный голем", junkName: "Горная руда", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🏔️ Горный тролль", junkName: "Горная руда", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🏔️ Горный тролль", junkName: "Каменная крошка", chance: 40, minQty: 1, maxQty: 3 },
+    { mobName: "🦅 Гигантский орёл", junkName: "Орлиное перо", chance: 60, minQty: 1, maxQty: 3 },
+    { mobName: "🦅 Гигантский орёл", junkName: "Каменная крошка", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🪨 Кристальный паук", junkName: "Кристальная пыль", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "🪨 Кристальный паук", junkName: "Орлиное перо", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🐉 Каменный дракончик", junkName: "Горная руда", chance: 50, minQty: 2, maxQty: 4 },
+    { mobName: "🐉 Каменный дракончик", junkName: "Кристальная пыль", chance: 40, minQty: 1, maxQty: 2 },
+    // Loc 5: 🏛️ Забытые руины
+    { mobName: "💀 Скелет-воин", junkName: "Костная мука", chance: 55, minQty: 2, maxQty: 4 },
+    { mobName: "💀 Скелет-воин", junkName: "Ржавое кольцо", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "👻 Призрачный маг", junkName: "Эфирный осколок", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "👻 Призрачный маг", junkName: "Тёмная эссенция", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🏛️ Проклятый рыцарь", junkName: "Ржавое кольцо", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🏛️ Проклятый рыцарь", junkName: "Костная мука", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🕷️ Паук-мутант", junkName: "Эфирный осколок", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🕷️ Паук-мутант", junkName: "Тёмная эссенция", chance: 35, minQty: 1, maxQty: 1 },
+    { mobName: "⚱️ Лич", junkName: "Тёмная эссенция", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "⚱️ Лич", junkName: "Эфирный осколок", chance: 45, minQty: 1, maxQty: 2 },
+    // Loc 6: ❄️ Ледяные вершины
+    { mobName: "❄️ Ледяной волк", junkName: "Ледяная стружка", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "❄️ Ледяной волк", junkName: "Снежная пыльца", chance: 35, minQty: 1, maxQty: 1 },
+    { mobName: "🧊 Снежный элементаль", junkName: "Снежная пыльца", chance: 55, minQty: 2, maxQty: 4 },
+    { mobName: "🧊 Снежный элементаль", junkName: "Ледяная стружка", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🐻‍❄️ Белый медведь", junkName: "Медвежий мех", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "🐻‍❄️ Белый медведь", junkName: "Ледяная стружка", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🗡️ Ледяной воин", junkName: "Ледяная стружка", chance: 45, minQty: 1, maxQty: 2 },
+    { mobName: "🗡️ Ледяной воин", junkName: "Замёрзшая кровь", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🐉 Снежный дракон", junkName: "Замёрзшая кровь", chance: 50, minQty: 2, maxQty: 4 },
+    { mobName: "🐉 Снежный дракон", junkName: "Медвежий мех", chance: 35, minQty: 1, maxQty: 2 },
+    // Loc 7: 🌋 Вулканические недра
+    { mobName: "🔥 Огненный элементаль", junkName: "Вулканический пепел", chance: 55, minQty: 2, maxQty: 4 },
+    { mobName: "🔥 Огненный элементаль", junkName: "Огненная искра", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🪨 Лавовый голем", junkName: "Осколок лавы", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "🪨 Лавовый голем", junkName: "Вулканический пепел", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "😈 Огненный демон", junkName: "Демоническая чешуя", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "😈 Огненный демон", junkName: "Огненная искра", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🦎 Саламандра", junkName: "Огненная искра", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🦎 Саламандра", junkName: "Демоническая чешуя", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🔮 Вулканический маг", junkName: "Осколок лавы", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🔮 Вулканический маг", junkName: "Вулканический пепел", chance: 40, minQty: 1, maxQty: 3 },
+    // Loc 8: 🌫️ Туманное ущелье
+    { mobName: "👻 Призрак рыцаря", junkName: "Сгусток тумана", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "👻 Призрак рыцаря", junkName: "Разбитый амулет", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🌫️ Теневой убийца", junkName: "Осколок тени", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "🌫️ Теневой убийца", junkName: "Сгусток тьмы", chance: 35, minQty: 1, maxQty: 1 },
+    { mobName: "💀 Проклятый паладин", junkName: "Разбитый амулет", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "💀 Проклятый паладин", junkName: "Сгусток тумана", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🦉 Призрачная сова", junkName: "Сгусток тумана", chance: 55, minQty: 1, maxQty: 2 },
+    { mobName: "🦉 Призрачная сова", junkName: "Разбитый амулет", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "⚔️ Тёмный генерал", junkName: "Осколок тени", chance: 50, minQty: 2, maxQty: 4 },
+    { mobName: "⚔️ Тёмный генерал", junkName: "Сгусток тьмы", chance: 45, minQty: 1, maxQty: 2 },
+    // Loc 9: 🔮 Затерянный храм
+    { mobName: "🗿 Храмовый страж", junkName: "Кристалл маны", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🗿 Храмовый страж", junkName: "Древняя табличка", chance: 35, minQty: 1, maxQty: 1 },
+    { mobName: "🔮 Магический голем", junkName: "Кристалл маны", chance: 55, minQty: 2, maxQty: 4 },
+    { mobName: "🔮 Магический голем", junkName: "Священный пепел", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🐍 Древняя змея", junkName: "Змеиный яд", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "🐍 Древняя змея", junkName: "Древняя табличка", chance: 35, minQty: 1, maxQty: 1 },
+    { mobName: "👤 Призрак жреца", junkName: "Священный пепел", chance: 55, minQty: 2, maxQty: 3 },
+    { mobName: "👤 Призрак жреца", junkName: "Кристалл маны", chance: 35, minQty: 1, maxQty: 1 },
+    { mobName: "🐉 Дракон храма", junkName: "Древняя табличка", chance: 50, minQty: 2, maxQty: 4 },
+    { mobName: "🐉 Дракон храма", junkName: "Змеиный яд", chance: 35, minQty: 1, maxQty: 2 },
+    // Loc 10: ✨ Эфирные чертоги
+    { mobName: "✨ Эфирный страж", junkName: "Эфирная пыль", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "✨ Эфирный страж", junkName: "Титанская стружка", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🌀 Энергетический вихрь", junkName: "Искра хаоса", chance: 55, minQty: 2, maxQty: 4 },
+    { mobName: "🌀 Энергетический вихрь", junkName: "Эфирная пыль", chance: 35, minQty: 1, maxQty: 2 },
+    { mobName: "🌟 Кристальный дракон", junkName: "Звёздная слеза", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "🌟 Кристальный дракон", junkName: "Эфирная пыль", chance: 35, minQty: 1, maxQty: 1 },
+    { mobName: "🌌 Эфирный титан", junkName: "Титанская стружка", chance: 55, minQty: 2, maxQty: 4 },
+    { mobName: "🌌 Эфирный титан", junkName: "Искра хаоса", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "⚡ Повелитель бездны", junkName: "Искра хаоса", chance: 50, minQty: 2, maxQty: 4 },
+    { mobName: "⚡ Повелитель бездны", junkName: "Звёздная слеза", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "👑 Астральный бог", junkName: "Звёздная слеза", chance: 50, minQty: 2, maxQty: 5 },
+    { mobName: "👑 Астральный бог", junkName: "Титанская стружка", chance: 40, minQty: 1, maxQty: 3 },
+  ];
+
+  const junkDropValues: { monsterId: number; junkItemId: number; dropChance: string; minQuantity: number; maxQuantity: number }[] = [];
+  for (const spec of junkDropSpecs) {
+    const mob = mobByName2[spec.mobName];
+    const junk = junkByName[spec.junkName];
+    if (mob && junk) {
+      junkDropValues.push({
+        monsterId: mob.id,
+        junkItemId: junk.id,
+        dropChance: String(spec.chance),
+        minQuantity: spec.minQty,
+        maxQuantity: spec.maxQty,
+      });
+    } else {
+      logger.warn({ mobName: spec.mobName, junkName: spec.junkName }, "Junk drop pair not found");
+    }
+  }
+
+  if (junkDropValues.length > 0) {
+    await db.insert(monsterJunkDrops).values(junkDropValues);
+  }
+
+  logger.info({ drops: dropValues.length, junkDrops: junkDropValues.length }, "Game data seeded");
 }
 
 // ─── NPC MIGRATION: Add healers to all locations + thematic naming ─────
@@ -364,7 +566,213 @@ export async function migrateNpcs() {
     // Loc 10: ✨ Эфирные чертоги
     { name: "Эфириус", title: "Сущность", locationId: 10, greeting: "Ты достиг границы миров. Докажи, что достоин.", advice: "В эфире нет правил. Читай атаки врага и адаптируйся.", npcType: "advisor", healCostPerHp: 0 },
     { name: "Эфирный Дух", title: "Исцеляющая Энергия", locationId: 10, greeting: "Материя и дух едины. Я восстановлю твою сущность за 10 монет за 25 здоровья.", advice: "В эфирных чертогах береги разум — иллюзии убивают быстрее клинков.", npcType: "healer", healCostPerHp: 10 },
+
+    // ── JUNK BUYERS ──────────────────────────────────────────────────────
+    { name: "Торговец Том", title: "Скупщик хлама", locationId: 1, greeting: "Есть что продать? Скуплю любой хлам дёшево.", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Скупщик Боб", title: "Лесной коллектор", locationId: 2, greeting: "В лесу много ценного мусора. Покажи что нашёл!", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Жаба-Торговка", title: "Болотная меняла", locationId: 3, greeting: "Ква-ква! Жабка любит блестяшки и платит монетки!", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Каменный Рэй", title: "Платный приёмщик", locationId: 4, greeting: "Каждая крошка — деньги. Выкладывай что есть.", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Гробовщик Нил", title: "Скупщик древностей", locationId: 5, greeting: "Мёртвые не возражают, если я продам их вещи.", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Снежная Герта", title: "Холодный оценщик", locationId: 6, greeting: "На морозе не торгуюсь. Цена фиксированная.", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Пеплосборщик", title: "Торговец лавой", locationId: 7, greeting: "В аду тоже нужны деньги. Что принёс?", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Теневой Маркус", title: "Контрабандист", locationId: 8, greeting: "Серый рынок принимает всё. Даже призрачные вещи.", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Жрец-кассир", title: "Церковный бухгалтер", locationId: 9, greeting: "Храм принимает пожертвования в виде ресурсов. Хорошо, что я плачу за них.", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Эфирный Торговец", title: "Трансцендентный барыга", locationId: 10, greeting: "Материя и золото взаимозаменяемы. Докажи!", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
   ]);
 
-  logger.info("NPCs migrated — 20 NPCs across 10 locations");
+  logger.info("NPCs migrated — 30 NPCs across 10 locations (incl. junk buyers)");
+}
+
+// ─── JUNK MIGRATION: Add junk items & drops to existing DB ────────────
+export async function migrateJunk() {
+  const existingJunk = await db.query.junkItems.findFirst();
+  if (existingJunk) {
+    logger.info("Junk data already exists, skipping.");
+    return;
+  }
+
+  logger.info("Migrating junk items and drops...");
+  await seedJunkData();
+  logger.info("Junk data migrated.");
+}
+
+async function seedJunkData() {
+  // Re-query all monsters and reuse the seed logic above
+  // (this is the same data as in seedGameData sections 6 & 7)
+  await db.insert(junkItems).values([
+    { name: "Сломанный клык", description: "Тупой обломок кабаньего клыка.", sellPrice: 1, locationId: 1 },
+    { name: "Грубая шкура", description: "Плохо выделанная звериная шкура.", sellPrice: 2, locationId: 1 },
+    { name: "Пушистый хвост", description: "Хвост гигантской крысы.", sellPrice: 1, locationId: 1 },
+    { name: "Щепка лешего", description: "Древесная щепка с остатками магии.", sellPrice: 3, locationId: 1 },
+    { name: "Медвежий коготь", description: "Острый коготь бурого медведя.", sellPrice: 5, locationId: 2 },
+    { name: "Вампирская пыль", description: "Прах лесного вампира.", sellPrice: 6, locationId: 2 },
+    { name: "Древесная смола", description: "Липкая смола корня-душителя.", sellPrice: 4, locationId: 2 },
+    { name: "Троллья слизь", description: "Вонючая слизь лесного тролля.", sellPrice: 8, locationId: 2 },
+    { name: "Болотная тина", description: "Густая зловонная тина.", sellPrice: 10, locationId: 3 },
+    { name: "Ядовитый пузырь", description: "Пузырь с ядовитым газом.", sellPrice: 12, locationId: 3 },
+    { name: "Крокодилий зуб", description: "Острый зуб болотного крокодила.", sellPrice: 15, locationId: 3 },
+    { name: "Змеиная чешуйка", description: "Мерцающая чешуйка болотной змеи.", sellPrice: 14, locationId: 3 },
+    { name: "Каменная крошка", description: "Крошка с каменного голема.", sellPrice: 18, locationId: 4 },
+    { name: "Орлиное перо", description: "Гигантское перо горного орла.", sellPrice: 20, locationId: 4 },
+    { name: "Кристальная пыль", description: "Мерцающая пыль кристального паука.", sellPrice: 22, locationId: 4 },
+    { name: "Горная руда", description: "Кусок руды с примесью драконьей чешуи.", sellPrice: 25, locationId: 4 },
+    { name: "Костная мука", description: "Мелкий порошок из древних костей.", sellPrice: 28, locationId: 5 },
+    { name: "Эфирный осколок", description: "Осколок призрачной материи.", sellPrice: 30, locationId: 5 },
+    { name: "Ржавое кольцо", description: "Почти рассыпавшееся кольцо рыцаря.", sellPrice: 32, locationId: 5 },
+    { name: "Тёмная эссенция", description: "Сгусток тёмной магии лича.", sellPrice: 35, locationId: 5 },
+    { name: "Ледяная стружка", description: "Вечно холодная ледяная крошка.", sellPrice: 38, locationId: 6 },
+    { name: "Снежная пыльца", description: "Пыльца снежного элементаля.", sellPrice: 40, locationId: 6 },
+    { name: "Медвежий мех", description: "Густой тёплый мех белого медведя.", sellPrice: 42, locationId: 6 },
+    { name: "Замёрзшая кровь", description: "Кровь ледяного дракона, застывшая кристаллом.", sellPrice: 45, locationId: 6 },
+    { name: "Вулканический пепел", description: "Горячий пепел вулканических недр.", sellPrice: 48, locationId: 7 },
+    { name: "Осколок лавы", description: "Засохший кусок лавы.", sellPrice: 50, locationId: 7 },
+    { name: "Демоническая чешуя", description: "Чешуя огненного демона.", sellPrice: 52, locationId: 7 },
+    { name: "Огненная искра", description: "Неугасающая искра вулканической магии.", sellPrice: 55, locationId: 7 },
+    { name: "Сгусток тумана", description: "Материализованный туман ущелья.", sellPrice: 58, locationId: 8 },
+    { name: "Осколок тени", description: "Фрагмент теневой материи.", sellPrice: 60, locationId: 8 },
+    { name: "Разбитый амулет", description: "Остатки амулета павшего рыцаря.", sellPrice: 62, locationId: 8 },
+    { name: "Сгусток тьмы", description: "Чистая эссенция тьмы.", sellPrice: 65, locationId: 8 },
+    { name: "Древняя табличка", description: "Табличка с забытыми письменами.", sellPrice: 68, locationId: 9 },
+    { name: "Кристалл маны", description: "Кристалл с остатками магии.", sellPrice: 70, locationId: 9 },
+    { name: "Змеиный яд", description: "Яд древней змеи, всё ещё активен.", sellPrice: 72, locationId: 9 },
+    { name: "Священный пепел", description: "Пепел сожжённых подношений.", sellPrice: 75, locationId: 9 },
+    { name: "Эфирная пыль", description: "Пыль из эфирного пространства.", sellPrice: 80, locationId: 10 },
+    { name: "Искра хаоса", description: "Искра чистого хаоса.", sellPrice: 85, locationId: 10 },
+    { name: "Звёздная слеза", description: "Текучая материя звезды.", sellPrice: 90, locationId: 10 },
+    { name: "Титанская стружка", description: "Крошка от доспеха эфирного титана.", sellPrice: 95, locationId: 10 },
+  ]);
+
+  const allMonsters = await db.query.monsters.findMany();
+  const allJunkItems = await db.query.junkItems.findMany();
+  const mobByName: Record<string, typeof allMonsters[number]> = {};
+  const junkByName: Record<string, typeof allJunkItems[number]> = {};
+  for (const m of allMonsters) mobByName[m.name] = m;
+  for (const j of allJunkItems) junkByName[j.name] = j;
+
+  const junkDropSpecs: { mobName: string; junkName: string; chance: number; minQty: number; maxQty: number }[] = [
+    { mobName: "🐗 Злобный кабан", junkName: "Сломанный клык", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🐗 Злобный кабан", junkName: "Грубая шкура", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🕷️ Лесной паук", junkName: "Грубая шкура", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🕷️ Лесной паук", junkName: "Пушистый хвост", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "🐺 Голодный волк", junkName: "Сломанный клык", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "🐺 Голодный волк", junkName: "Грубая шкура", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🐭 Гигантская крыса", junkName: "Пушистый хвост", chance: 60, minQty: 1, maxQty: 2 },
+    { mobName: "🌿 Леший", junkName: "Щепка лешего", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🌿 Леший", junkName: "Древесная смола", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🐻 Бурый медведь", junkName: "Медвежий коготь", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🐻 Бурый медведь", junkName: "Грубая шкура", chance: 40, minQty: 1, maxQty: 3 },
+    { mobName: "🧛 Лесной вампир", junkName: "Вампирская пыль", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🧛 Лесной вампир", junkName: "Пушистый хвост", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🌳 Корень-душитель", junkName: "Древесная смола", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "🌳 Корень-душитель", junkName: "Щепка лешего", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🦌 Тёмный олень", junkName: "Древесная смола", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🦌 Тёмный олень", junkName: "Медвежий коготь", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🐗 Лесной тролль", junkName: "Троллья слизь", chance: 60, minQty: 1, maxQty: 3 },
+    { mobName: "🐗 Лесной тролль", junkName: "Медвежий коготь", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🐊 Болотный крокодил", junkName: "Крокодилий зуб", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🐊 Болотный крокодил", junkName: "Болотная тина", chance: 40, minQty: 1, maxQty: 3 },
+    { mobName: "🐸 Ядовитая жаба", junkName: "Ядовитый пузырь", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "🐸 Ядовитая жаба", junkName: "Болотная тина", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🌿 Болотный элементаль", junkName: "Болотная тина", chance: 60, minQty: 2, maxQty: 4 },
+    { mobName: "🌿 Болотный элементаль", junkName: "Ядовитый пузырь", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🦟 Рой москитов", junkName: "Крокодилий зуб", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🦟 Рой москитов", junkName: "Болотная тина", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🐍 Болотная змея", junkName: "Змеиная чешуйка", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "🐍 Болотная змея", junkName: "Ядовитый пузырь", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🕷️ Топяной паук", junkName: "Змеиная чешуйка", chance: 45, minQty: 1, maxQty: 2 },
+    { mobName: "🕷️ Топяной паук", junkName: "Болотная тина", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "🪨 Каменный голем", junkName: "Каменная крошка", chance: 55, minQty: 2, maxQty: 4 },
+    { mobName: "🪨 Каменный голем", junkName: "Горная руда", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🏔️ Горный тролль", junkName: "Горная руда", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🏔️ Горный тролль", junkName: "Каменная крошка", chance: 40, minQty: 1, maxQty: 3 },
+    { mobName: "🦅 Гигантский орёл", junkName: "Орлиное перо", chance: 60, minQty: 1, maxQty: 3 },
+    { mobName: "🦅 Гигантский орёл", junkName: "Каменная крошка", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🪨 Кристальный паук", junkName: "Кристальная пыль", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "🪨 Кристальный паук", junkName: "Орлиное перо", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🐉 Каменный дракончик", junkName: "Горная руда", chance: 50, minQty: 2, maxQty: 4 },
+    { mobName: "🐉 Каменный дракончик", junkName: "Кристальная пыль", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "💀 Скелет-воин", junkName: "Костная мука", chance: 55, minQty: 2, maxQty: 4 },
+    { mobName: "💀 Скелет-воин", junkName: "Ржавое кольцо", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "👻 Призрачный маг", junkName: "Эфирный осколок", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "👻 Призрачный маг", junkName: "Тёмная эссенция", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🏛️ Проклятый рыцарь", junkName: "Ржавое кольцо", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🏛️ Проклятый рыцарь", junkName: "Костная мука", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🕷️ Паук-мутант", junkName: "Эфирный осколок", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🕷️ Паук-мутант", junkName: "Тёмная эссенция", chance: 35, minQty: 1, maxQty: 1 },
+    { mobName: "⚱️ Лич", junkName: "Тёмная эссенция", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "⚱️ Лич", junkName: "Эфирный осколок", chance: 45, minQty: 1, maxQty: 2 },
+    { mobName: "❄️ Ледяной волк", junkName: "Ледяная стружка", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "❄️ Ледяной волк", junkName: "Снежная пыльца", chance: 35, minQty: 1, maxQty: 1 },
+    { mobName: "🧊 Снежный элементаль", junkName: "Снежная пыльца", chance: 55, minQty: 2, maxQty: 4 },
+    { mobName: "🧊 Снежный элементаль", junkName: "Ледяная стружка", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🐻‍❄️ Белый медведь", junkName: "Медвежий мех", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "🐻‍❄️ Белый медведь", junkName: "Ледяная стружка", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🗡️ Ледяной воин", junkName: "Ледяная стружка", chance: 45, minQty: 1, maxQty: 2 },
+    { mobName: "🗡️ Ледяной воин", junkName: "Замёрзшая кровь", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🐉 Снежный дракон", junkName: "Замёрзшая кровь", chance: 50, minQty: 2, maxQty: 4 },
+    { mobName: "🐉 Снежный дракон", junkName: "Медвежий мех", chance: 35, minQty: 1, maxQty: 2 },
+    { mobName: "🔥 Огненный элементаль", junkName: "Вулканический пепел", chance: 55, minQty: 2, maxQty: 4 },
+    { mobName: "🔥 Огненный элементаль", junkName: "Огненная искра", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🪨 Лавовый голем", junkName: "Осколок лавы", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "🪨 Лавовый голем", junkName: "Вулканический пепел", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "😈 Огненный демон", junkName: "Демоническая чешуя", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "😈 Огненный демон", junkName: "Огненная искра", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🦎 Саламандра", junkName: "Огненная искра", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🦎 Саламандра", junkName: "Демоническая чешуя", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🔮 Вулканический маг", junkName: "Осколок лавы", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🔮 Вулканический маг", junkName: "Вулканический пепел", chance: 40, minQty: 1, maxQty: 3 },
+    { mobName: "👻 Призрак рыцаря", junkName: "Сгусток тумана", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "👻 Призрак рыцаря", junkName: "Разбитый амулет", chance: 40, minQty: 1, maxQty: 1 },
+    { mobName: "🌫️ Теневой убийца", junkName: "Осколок тени", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "🌫️ Теневой убийца", junkName: "Сгусток тьмы", chance: 35, minQty: 1, maxQty: 1 },
+    { mobName: "💀 Проклятый паладин", junkName: "Разбитый амулет", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "💀 Проклятый паладин", junkName: "Сгусток тумана", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "🦉 Призрачная сова", junkName: "Сгусток тумана", chance: 55, minQty: 1, maxQty: 2 },
+    { mobName: "🦉 Призрачная сова", junkName: "Разбитый амулет", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "⚔️ Тёмный генерал", junkName: "Осколок тени", chance: 50, minQty: 2, maxQty: 4 },
+    { mobName: "⚔️ Тёмный генерал", junkName: "Сгусток тьмы", chance: 45, minQty: 1, maxQty: 2 },
+    { mobName: "🗿 Храмовый страж", junkName: "Кристалл маны", chance: 50, minQty: 1, maxQty: 2 },
+    { mobName: "🗿 Храмовый страж", junkName: "Древняя табличка", chance: 35, minQty: 1, maxQty: 1 },
+    { mobName: "🔮 Магический голем", junkName: "Кристалл маны", chance: 55, minQty: 2, maxQty: 4 },
+    { mobName: "🔮 Магический голем", junkName: "Священный пепел", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🐍 Древняя змея", junkName: "Змеиный яд", chance: 55, minQty: 1, maxQty: 3 },
+    { mobName: "🐍 Древняя змея", junkName: "Древняя табличка", chance: 35, minQty: 1, maxQty: 1 },
+    { mobName: "👤 Призрак жреца", junkName: "Священный пепел", chance: 55, minQty: 2, maxQty: 3 },
+    { mobName: "👤 Призрак жреца", junkName: "Кристалл маны", chance: 35, minQty: 1, maxQty: 1 },
+    { mobName: "🐉 Дракон храма", junkName: "Древняя табличка", chance: 50, minQty: 2, maxQty: 4 },
+    { mobName: "🐉 Дракон храма", junkName: "Змеиный яд", chance: 35, minQty: 1, maxQty: 2 },
+    { mobName: "✨ Эфирный страж", junkName: "Эфирная пыль", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "✨ Эфирный страж", junkName: "Титанская стружка", chance: 30, minQty: 1, maxQty: 1 },
+    { mobName: "🌀 Энергетический вихрь", junkName: "Искра хаоса", chance: 55, minQty: 2, maxQty: 4 },
+    { mobName: "🌀 Энергетический вихрь", junkName: "Эфирная пыль", chance: 35, minQty: 1, maxQty: 2 },
+    { mobName: "🌟 Кристальный дракон", junkName: "Звёздная слеза", chance: 50, minQty: 1, maxQty: 3 },
+    { mobName: "🌟 Кристальный дракон", junkName: "Эфирная пыль", chance: 35, minQty: 1, maxQty: 1 },
+    { mobName: "🌌 Эфирный титан", junkName: "Титанская стружка", chance: 55, minQty: 2, maxQty: 4 },
+    { mobName: "🌌 Эфирный титан", junkName: "Искра хаоса", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "⚡ Повелитель бездны", junkName: "Искра хаоса", chance: 50, minQty: 2, maxQty: 4 },
+    { mobName: "⚡ Повелитель бездны", junkName: "Звёздная слеза", chance: 40, minQty: 1, maxQty: 2 },
+    { mobName: "👑 Астральный бог", junkName: "Звёздная слеза", chance: 50, minQty: 2, maxQty: 5 },
+    { mobName: "👑 Астральный бог", junkName: "Титанская стружка", chance: 40, minQty: 1, maxQty: 3 },
+  ];
+
+  const junkDropValues: { monsterId: number; junkItemId: number; dropChance: string; minQuantity: number; maxQuantity: number }[] = [];
+  for (const spec of junkDropSpecs) {
+    const mob = mobByName[spec.mobName];
+    const junk = junkByName[spec.junkName];
+    if (mob && junk) {
+      junkDropValues.push({
+        monsterId: mob.id,
+        junkItemId: junk.id,
+        dropChance: String(spec.chance),
+        minQuantity: spec.minQty,
+        maxQuantity: spec.maxQty,
+      });
+    } else {
+      logger.warn({ mobName: spec.mobName, junkName: spec.junkName }, "Junk drop pair not found");
+    }
+  }
+
+  if (junkDropValues.length > 0) {
+    await db.insert(monsterJunkDrops).values(junkDropValues);
+  }
 }

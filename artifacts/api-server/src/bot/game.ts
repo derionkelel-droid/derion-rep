@@ -1,9 +1,12 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   players,
   equipmentItems,
   inventory,
+  junkItems,
+  junkInventory,
+  monsterJunkDrops,
   locations,
   monsters,
   monsterDrops,
@@ -12,6 +15,7 @@ import {
   combatSessions,
   type Player,
   type EquipmentItem,
+  type JunkItem,
   type Race,
   type Class,
   type EquipmentSlot,
@@ -203,6 +207,78 @@ export async function getInventory(playerId: number) {
     where: (inv, { eq: op }) => op(inv.playerId, playerId),
     with: { item: true },
   });
+}
+
+// ─── JUNK HELPERS ────────────────────────────────────────────────────────
+
+export async function addJunkToInventory(playerId: number, junkItemId: number, quantity: number) {
+  const existing = await db.query.junkInventory.findFirst({
+    where: (ji, { and: andOp, eq: op }) =>
+      andOp(op(ji.playerId, playerId), op(ji.junkItemId, junkItemId)),
+  });
+  if (existing) {
+    await db
+      .update(junkInventory)
+      .set({ quantity: existing.quantity + quantity })
+      .where(eq(junkInventory.id, existing.id));
+  } else {
+    await db.insert(junkInventory).values({ playerId, junkItemId, quantity });
+  }
+}
+
+export async function checkJunkDrops(monsterId: number): Promise<{ junkItem: JunkItem; quantity: number }[]> {
+  const drops = await db.query.monsterJunkDrops.findMany({
+    where: (mjd, { eq: op }) => op(mjd.monsterId, monsterId),
+    with: { junkItem: true },
+  });
+  const results: { junkItem: JunkItem; quantity: number }[] = [];
+  for (const drop of drops) {
+    const chance = parseFloat(drop.dropChance as string);
+    if (Math.random() * 100 < chance) {
+      const qty = drop.minQuantity + Math.floor(Math.random() * (drop.maxQuantity - drop.minQuantity + 1));
+      results.push({ junkItem: drop.junkItem, quantity: qty });
+    }
+  }
+  return results;
+}
+
+export async function getJunkInventory(playerId: number) {
+  return db.query.junkInventory.findMany({
+    where: (ji, { eq: op }) => op(ji.playerId, playerId),
+    with: { junkItem: true },
+  });
+}
+
+export async function removeJunkFromInventory(playerId: number, junkItemId: number, quantity: number): Promise<number> {
+  const entry = await db.query.junkInventory.findFirst({
+    where: (ji, { and: andOp, eq: op }) =>
+      andOp(op(ji.playerId, playerId), op(ji.junkItemId, junkItemId)),
+  });
+  if (!entry || entry.quantity < quantity) return 0;
+  const newQty = entry.quantity - quantity;
+  if (newQty <= 0) {
+    await db.delete(junkInventory).where(eq(junkInventory.id, entry.id));
+  } else {
+    await db
+      .update(junkInventory)
+      .set({ quantity: newQty })
+      .where(eq(junkInventory.id, entry.id));
+  }
+  const totalGold = quantity * entry.junkItem.sellPrice;
+  return totalGold;
+}
+
+export async function sellAllJunk(playerId: number): Promise<{ totalGold: number; soldItems: { name: string; qty: number; gold: number }[] }> {
+  const entries = await getJunkInventory(playerId);
+  let totalGold = 0;
+  const soldItems: { name: string; qty: number; gold: number }[] = [];
+  for (const entry of entries) {
+    const gold = entry.quantity * entry.junkItem.sellPrice;
+    totalGold += gold;
+    soldItems.push({ name: entry.junkItem.name, qty: entry.quantity, gold });
+    await db.delete(junkInventory).where(eq(junkInventory.id, entry.id));
+  }
+  return { totalGold, soldItems };
 }
 
 export async function getLocation(locationId: number) {
