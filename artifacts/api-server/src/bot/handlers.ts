@@ -576,10 +576,14 @@ ${rewardDesc}
         await ctx.editMessageText(msg, {
           parse_mode: "HTML",
           reply_markup: combatActionSelectionKeyboard(classSkills, canUse),
-        });
+        }).catch(() => {}); // silent fail on "message not modified"
       } catch (e) {
-        logger.error({ err: e, telegramId }, "combat_start error");
-        await ctx.editMessageText("❌ Ошибка. Попробуй /start.").catch(() => {});
+        // Only log real errors, ignore "message not modified"
+        const errMsg = (e as any)?.message || "";
+        if (!errMsg.includes("message is not modified")) {
+          logger.error({ err: e, telegramId }, "combat_start error");
+          await ctx.answerCallbackQuery({ text: "⚠️ Ошибка" }).catch(() => {});
+        }
       }
       return;
     }

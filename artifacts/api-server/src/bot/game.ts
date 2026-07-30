@@ -855,14 +855,23 @@ export async function checkAndUnlockAchievement(player: Player, ctx: { kills: nu
   });
   const unlockedKeys = new Set(unlocked.map((a) => a.achievementKey));
   const newAchievements: string[] = [];
+  let totalDiamondReward = 0;
 
   for (const ach of ACHIEVEMENTS) {
     if (unlockedKeys.has(ach.key)) continue;
     if (ach.check(player, ctx)) {
       await db.insert(playerAchievements).values({ playerId: player.id, achievementKey: ach.key });
-      await db.update(players).set({ diamonds: player.diamonds + ach.rewardDiamonds }).where(eq(players.id, player.id));
+      totalDiamondReward += ach.rewardDiamonds;
       newAchievements.push(`${ach.icon} <b>${ach.name}</b> — ${ach.rewardDiamonds}💎\n${ach.description}`);
     }
+  }
+
+  // Single update with accumulated reward
+  if (totalDiamondReward > 0) {
+    await db
+      .update(players)
+      .set({ diamonds: player.diamonds + totalDiamondReward })
+      .where(eq(players.id, player.id));
   }
 
   return newAchievements;
