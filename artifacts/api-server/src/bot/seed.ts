@@ -776,3 +776,29 @@ async function seedJunkData() {
     await db.insert(monsterJunkDrops).values(junkDropValues);
   }
 }
+
+// ─── JUNK BUYER MIGRATION ─────────────────────────────────────────────
+export async function migrateJunkBuyers() {
+  const existingBuyer = await db.query.npcs.findFirst({
+    where: (n, { eq: op }) => op(n.npcType, "junk_buyer"),
+  });
+  if (existingBuyer) {
+    logger.info("Junk buyer NPCs already exist, skipping.");
+    return;
+  }
+
+  logger.info("Adding junk buyer NPCs...");
+  await db.insert(npcs).values([
+    { name: "Торговец Том", title: "Скупщик хлама", locationId: 1, greeting: "Есть что продать? Скуплю любой хлам дёшево.", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Скупщик Боб", title: "Лесной коллектор", locationId: 2, greeting: "В лесу много ценного мусора. Покажи что нашёл!", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Жаба-Торговка", title: "Болотная меняла", locationId: 3, greeting: "Ква-ква! Жабка любит блестяшки и платит монетки!", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Каменный Рэй", title: "Платный приёмщик", locationId: 4, greeting: "Каждая крошка — деньги. Выкладывай что есть.", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Гробовщик Нил", title: "Скупщик древностей", locationId: 5, greeting: "Мёртвые не возражают, если я продам их вещи.", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Снежная Герта", title: "Холодный оценщик", locationId: 6, greeting: "На морозе не торгуюсь. Цена фиксированная.", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Пеплосборщик", title: "Торговец лавой", locationId: 7, greeting: "В аду тоже нужны деньги. Что принёс?", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Теневой Маркус", title: "Контрабандист", locationId: 8, greeting: "Серый рынок принимает всё. Даже призрачные вещи.", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Жрец-кассир", title: "Церковный бухгалтер", locationId: 9, greeting: "Храм принимает пожертвования в виде ресурсов. Хорошо, что я плачу за них.", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+    { name: "Эфирный Торговец", title: "Трансцендентный барыга", locationId: 10, greeting: "Материя и золото взаимозаменяемы. Докажи!", advice: "", npcType: "junk_buyer", healCostPerHp: 0 },
+  ]);
+  logger.info("10 junk buyer NPCs added.");
+}

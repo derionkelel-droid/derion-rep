@@ -4,7 +4,7 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { startBot } from "./bot";
-import { seedGameData, migrateNpcs, migrateJunk } from "./bot/seed";
+import { seedGameData, migrateNpcs, migrateJunk, migrateJunkBuyers } from "./bot/seed";
 
 const app: Express = express();
 
@@ -37,6 +37,7 @@ app.use("/api", router);
 seedGameData()
   .then(() => migrateNpcs())
   .then(() => migrateJunk())
+  .then(() => migrateJunkBuyers())
   .then(() => {
     startBot();
   })
