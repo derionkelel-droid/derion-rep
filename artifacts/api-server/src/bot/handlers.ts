@@ -1347,7 +1347,7 @@ ${item.description ? `📝 ${item.description}` : ""}`;
 
       const shopItems = await db.query.equipmentItems.findMany({
         where: (eqi, { and: andOp, eq: eqOp, lte }) =>
-          andOp(eqOp(eqi.isShopItem, true), lte(eqi.requiredLevel, player.level)),
+          andOp(eqOp(eqi.isShopItem, true), eqOp(eqi.locationId, player.currentLocationId), lte(eqi.requiredLevel, player.level)),
       });
 
       if (shopItems.length === 0) {
@@ -1361,7 +1361,7 @@ ${item.description ? `📝 ${item.description}` : ""}`;
         `🏪 <b>Магазин экипировки</b>\n🪙 Твои монеты: ${player.gold}\n\nВыбери предмет для покупки:`,
         {
           parse_mode: "HTML",
-          reply_markup: shopKeyboard(shopItems.map((i) => ({ id: i.id, name: i.name, price: i.price }))),
+          reply_markup: locationShopKeyboard(shopItems.map((i) => ({ id: i.id, name: i.name, price: i.price }))),
         },
       );
       return;
@@ -1440,14 +1440,14 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
 
       const shopItems = await db.query.equipmentItems.findMany({
         where: (eqi, { and: andOp, eq: eqOp, lte }) =>
-          andOp(eqOp(eqi.isShopItem, true), lte(eqi.requiredLevel, player.level)),
+          andOp(eqOp(eqi.isShopItem, true), eqOp(eqi.locationId, player.currentLocationId), lte(eqi.requiredLevel, player.level)),
       });
       const updatedPlayer = await getPlayer(telegramId);
       await ctx.editMessageText(
         `🏪 <b>Магазин экипировки</b>\n🪙 Твои монеты: ${updatedPlayer?.gold || 0}\n\nВыбери предмет для покупки:`,
         {
           parse_mode: "HTML",
-          reply_markup: shopKeyboard(shopItems.map((i) => ({ id: i.id, name: i.name, price: i.price }))),
+          reply_markup: locationShopKeyboard(shopItems.map((i) => ({ id: i.id, name: i.name, price: i.price }))),
         },
       );
       return;
@@ -1460,14 +1460,14 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
 
       const shopItems = await db.query.equipmentItems.findMany({
         where: (eqi, { and: andOp, eq: eqOp, lte }) =>
-          andOp(eqOp(eqi.isShopItem, true), lte(eqi.requiredLevel, player.level)),
+          andOp(eqOp(eqi.isShopItem, true), eqOp(eqi.locationId, player.currentLocationId), lte(eqi.requiredLevel, player.level)),
       });
 
       await ctx.editMessageText(
         `🏪 <b>Магазин экипировки</b>\n🪙 Твои монеты: ${player.gold}\n\nВыбери предмет для покупки:`,
         {
           parse_mode: "HTML",
-          reply_markup: shopKeyboard(shopItems.map((i) => ({ id: i.id, name: i.name, price: i.price })), page),
+          reply_markup: locationShopKeyboard(shopItems.map((i) => ({ id: i.id, name: i.name, price: i.price })), page),
         },
       );
       return;
@@ -1598,6 +1598,16 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
 
       const kb = new InlineKeyboard();
       if (npc.npcType === "healer") {
+        // Check player level vs location — high-level players can't use low-location healers
+        const location = await db.query.locations.findFirst({ where: (l, { eq: op }) => op(l.id, npc.locationId) });
+        const maxHealLevel = location ? location.requiredLevel + 5 : 999;
+        if (player.level > maxHealLevel) {
+          await ctx.editMessageText(
+            `❤️ <b>${npc.name}</b> — ${npc.title}\n━━━━━━━━━━━━━━━\n\n💬 <i>"${npc.greeting}"</i>\n\n⚠️ <b>Слишком сильный герой!</b>\nЭтот целитель не сможет тебе помочь — твой уровень (${player.level}) слишком высок для этой локации.\n\n<i>Найди целителя на более высокоуровневой локации или используй зелья.</i>`,
+            { parse_mode: "HTML", reply_markup: new InlineKeyboard().text("🔙 Назад", "npc") }
+          );
+          return;
+        }
         const maxHp = calculateMaxHp(player);
         const missing = maxHp - player.currentHp;
         const cost = Math.ceil(missing / 25) * (npc.healCostPerHp || 3);
@@ -1622,10 +1632,10 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
         kb.row();
       }
       if (npc.npcType === "shopkeeper") {
-        // Show shop items directly
+        // Show shop items for this NPC's location
         const shopItems = await db.query.equipmentItems.findMany({
           where: (eqi, { and: andOp, eq: eqOp, lte }) =>
-            andOp(eqOp(eqi.isShopItem, true), lte(eqi.requiredLevel, player.level)),
+            andOp(eqOp(eqi.isShopItem, true), eqOp(eqi.locationId, npc.locationId), lte(eqi.requiredLevel, player.level)),
         });
         if (shopItems.length === 0) {
           await ctx.editMessageText("🏪 В лавке пока пусто.\n\n<i>Загляни позже, может появится товар.</i>", {
@@ -1789,6 +1799,18 @@ ${soldList}
         const healNpc = allNpcs[0];
         if (!healNpc || healNpc.npcType !== "healer") return;
 
+        // Check player level vs location
+        const location = await db.query.locations.findFirst({ where: (l, { eq: op }) => op(l.id, healNpc.locationId) });
+        const maxHealLevel = location ? location.requiredLevel + 5 : 999;
+        if (player.level > maxHealLevel) {
+          await ctx.editMessageText(
+            `⚠️ <b>Слишком сильный герой!</b>\n\nЭтот целитель (
+            ${healNpc.name}) не может тебе помочь — твой уровень (${player.level}) слишком высок для этой локации.\n\n<i>Найди целителя на более высокоуровневой локации или используй зелья.</i>`,
+            { parse_mode: "HTML", reply_markup: new InlineKeyboard().text("🔙 Назад", "npc") }
+          );
+          return;
+        }
+
         const maxHp = calculateMaxHp(player);
         const missing = maxHp - player.currentHp;
         if (missing <= 0) {
@@ -1840,6 +1862,18 @@ ${soldList}
         const allNpcs = await db.query.npcs.findMany({ where: (n, { eq: op }) => op(n.id, npcId) });
         const healNpc = allNpcs[0];
         if (!healNpc || healNpc.npcType !== "healer") return;
+
+        // Check player level vs location
+        const location = await db.query.locations.findFirst({ where: (l, { eq: op }) => op(l.id, healNpc.locationId) });
+        const maxHealLevel = location ? location.requiredLevel + 5 : 999;
+        if (player.level > maxHealLevel) {
+          await ctx.answerCallbackQuery({ text: "❌ Твой уровень слишком высок для этого целителя!" });
+          await ctx.editMessageText(
+            `⚠️ <b>Слишком сильный герой!</b>\n\nЭтот целитель не может тебе помочь — твой уровень (${player.level}) слишком высок для этой локации.`,
+            { parse_mode: "HTML", reply_markup: new InlineKeyboard().text("🔙 Назад", "npc") }
+          );
+          return;
+        }
 
         const maxHp = calculateMaxHp(player);
         const missing = maxHp - player.currentHp;

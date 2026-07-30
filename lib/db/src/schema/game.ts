@@ -51,6 +51,7 @@ export const equipmentItems = pgTable("equipment_items", {
   bonusDefense: integer("bonus_defense").notNull().default(0),
   price: integer("price").notNull().default(0),
   isShopItem: boolean("is_shop_item").notNull().default(false),
+  locationId: integer("location_id"),
   description: text("description").notNull().default(""),
 });
 

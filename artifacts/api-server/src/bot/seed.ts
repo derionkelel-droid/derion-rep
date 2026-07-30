@@ -37,52 +37,60 @@ export async function seedGameData() {
   // ─── 2. EQUIPMENT ──────────────────────────────────────────────────────
   await db.insert(equipmentItems).values([
     // == SHOP ITEMS ==
-    { name: "Деревянный меч", slot: "weapon", armorType: "weapon", requiredLevel: 1, requiredClass: "warrior", bonusAttack: 5, price: 50, isShopItem: true, description: "Простой деревянный меч." },
-    { name: "Короткий лук", slot: "weapon", armorType: "weapon", requiredLevel: 1, requiredClass: "archer", bonusAttack: 4, bonusAgility: 1, price: 50, isShopItem: true, description: "Лёгкий лук для охоты." },
-    { name: "Ученический посох", slot: "weapon", armorType: "weapon", requiredLevel: 1, requiredClass: "mage", bonusAttack: 3, bonusIntelligence: 2, price: 50, isShopItem: true, description: "Простой посох." },
-    { name: "Ржавый кинжал", slot: "weapon", armorType: "weapon", requiredLevel: 1, requiredClass: "assassin", bonusAttack: 3, bonusAgility: 2, price: 50, isShopItem: true, description: "Старый но острый кинжал." },
-    { name: "Тряпичная шапка", slot: "head", armorType: "cloth", requiredLevel: 1, bonusDefense: 2, price: 30, isShopItem: true, description: "Простая шапка." },
-    { name: "Кожаный жилет", slot: "chest", armorType: "leather", requiredLevel: 1, bonusDefense: 3, bonusHp: 10, price: 60, isShopItem: true, description: "Лёгкий кожаный жилет." },
-    { name: "Железный меч", slot: "weapon", armorType: "weapon", requiredLevel: 5, requiredClass: "warrior", bonusAttack: 12, bonusStrength: 2, price: 200, isShopItem: true, description: "Надёжный железный меч." },
-    { name: "Длинный лук", slot: "weapon", armorType: "weapon", requiredLevel: 5, requiredClass: "archer", bonusAttack: 10, bonusAgility: 2, price: 200, isShopItem: true, description: "Лук с хорошей дальностью." },
-    { name: "Магический жезл", slot: "weapon", armorType: "weapon", requiredLevel: 5, requiredClass: "mage", bonusAttack: 8, bonusIntelligence: 3, price: 200, isShopItem: true, description: "Жезл с магическим камнем." },
-    { name: "Стальной кинжал", slot: "weapon", armorType: "weapon", requiredLevel: 5, requiredClass: "assassin", bonusAttack: 8, bonusAgility: 3, price: 200, isShopItem: true, description: "Острый стальной кинжал." },
-    { name: "Железный шлем", slot: "head", armorType: "plate", requiredLevel: 5, requiredClass: "warrior", bonusDefense: 6, bonusHp: 10, price: 150, isShopItem: true, description: "Тяжёлый железный шлем." },
-    { name: "Кольчуга", slot: "chest", armorType: "plate", requiredLevel: 5, requiredClass: "warrior", bonusDefense: 10, bonusHp: 25, price: 300, isShopItem: true, description: "Надёжная кольчуга." },
-    { name: "Берсеркер", slot: "weapon", armorType: "weapon", requiredLevel: 10, requiredClass: "warrior", bonusAttack: 22, bonusStrength: 3, bonusVitality: 2, price: 500, isShopItem: true, description: "Тяжёлый двуручный меч." },
-    { name: "Ледяные стрелы", slot: "weapon", armorType: "weapon", requiredLevel: 10, requiredClass: "archer", bonusAttack: 18, bonusAgility: 4, price: 500, isShopItem: true, description: "Стрелы с ледяным наконечником." },
-    { name: "Посох огня", slot: "weapon", armorType: "weapon", requiredLevel: 10, requiredClass: "mage", bonusAttack: 16, bonusIntelligence: 5, price: 500, isShopItem: true, description: "Посох наполненный огненной магией." },
-    { name: "Когти тьмы", slot: "weapon", armorType: "weapon", requiredLevel: 10, requiredClass: "assassin", bonusAttack: 16, bonusAgility: 5, price: 500, isShopItem: true, description: "Парные когти отравленные ядом." },
-    { name: "Стальной нагрудник", slot: "chest", armorType: "plate", requiredLevel: 10, requiredClass: "warrior", bonusDefense: 18, bonusHp: 40, bonusVitality: 2, price: 600, isShopItem: true, description: "Тяжёлый стальной нагрудник." },
-    { name: "Плащ ткача", slot: "chest", armorType: "cloth", requiredLevel: 10, requiredClass: "mage", bonusDefense: 8, bonusHp: 20, bonusIntelligence: 3, price: 400, isShopItem: true, description: "Магический плащ." },
-    { name: "Мифриловый меч", slot: "weapon", armorType: "weapon", requiredLevel: 15, requiredClass: "warrior", bonusAttack: 35, bonusStrength: 5, price: 1200, isShopItem: true, description: "Лёгкий и прочный мифриловый меч." },
-    { name: "Эльфийский лук", slot: "weapon", armorType: "weapon", requiredLevel: 15, requiredClass: "archer", bonusAttack: 28, bonusAgility: 6, price: 1200, isShopItem: true, description: "Эльфийский лук." },
-    { name: "Посох бурь", slot: "weapon", armorType: "weapon", requiredLevel: 15, requiredClass: "mage", bonusAttack: 25, bonusIntelligence: 7, price: 1200, isShopItem: true, description: "Посох призывающий молнии." },
-    { name: "Теневые клинки", slot: "weapon", armorType: "weapon", requiredLevel: 15, requiredClass: "assassin", bonusAttack: 25, bonusAgility: 7, price: 1200, isShopItem: true, description: "Клинки из теневой стали." },
-    { name: "Стальные поножи", slot: "legs", armorType: "plate", requiredLevel: 10, requiredClass: "warrior", bonusDefense: 12, bonusVitality: 1, price: 350, isShopItem: true, description: "Тяжёлые стальные поножи." },
-    { name: "Кожаные штаны", slot: "legs", armorType: "leather", requiredLevel: 5, bonusDefense: 5, bonusAgility: 1, price: 120, isShopItem: true, description: "Лёгкие кожаные штаны." },
-    { name: "Сапоги странника", slot: "feet", armorType: "leather", requiredLevel: 1, bonusDefense: 2, price: 40, isShopItem: true, description: "Прочные сапоги для дальних странствий." },
-    // Higher tier shop items
-    { name: "Рунический меч", slot: "weapon", armorType: "weapon", requiredLevel: 20, requiredClass: "warrior", bonusAttack: 48, bonusStrength: 7, bonusVitality: 3, price: 2500, isShopItem: true, description: "Меч с древними рунами." },
-    { name: "Арбалет", slot: "weapon", armorType: "weapon", requiredLevel: 20, requiredClass: "archer", bonusAttack: 40, bonusAgility: 8, price: 2500, isShopItem: true, description: "Мощный механический арбалет." },
-    { name: "Посох времени", slot: "weapon", armorType: "weapon", requiredLevel: 20, requiredClass: "mage", bonusAttack: 35, bonusIntelligence: 10, price: 2500, isShopItem: true, description: "Посох искажающий время." },
-    { name: "Убийца драконов", slot: "weapon", armorType: "weapon", requiredLevel: 20, requiredClass: "assassin", bonusAttack: 35, bonusAgility: 10, price: 2500, isShopItem: true, description: "Кинжал убивавший драконов." },
-    { name: "Палач", slot: "weapon", armorType: "weapon", requiredLevel: 25, requiredClass: "warrior", bonusAttack: 65, bonusStrength: 10, bonusVitality: 5, price: 5000, isShopItem: true, description: "Массивный топор палача." },
-    { name: "Лук феникса", slot: "weapon", armorType: "weapon", requiredLevel: 25, requiredClass: "archer", bonusAttack: 55, bonusAgility: 12, price: 5000, isShopItem: true, description: "Лук из пера феникса." },
-    { name: "Посох бездны", slot: "weapon", armorType: "weapon", requiredLevel: 25, requiredClass: "mage", bonusAttack: 50, bonusIntelligence: 14, price: 5000, isShopItem: true, description: "Посох из глубин бездны." },
-    { name: "Коса смерти", slot: "weapon", armorType: "weapon", requiredLevel: 25, requiredClass: "assassin", bonusAttack: 50, bonusAgility: 14, price: 5000, isShopItem: true, description: "Коса несущая смерть." },
-    { name: "Легенда", slot: "weapon", armorType: "weapon", requiredLevel: 30, requiredClass: "warrior", bonusAttack: 85, bonusStrength: 14, bonusVitality: 8, price: 10000, isShopItem: true, description: "Меч о котором слагают легенды." },
-    { name: "Ветролом", slot: "weapon", armorType: "weapon", requiredLevel: 30, requiredClass: "archer", bonusAttack: 72, bonusAgility: 16, price: 10000, isShopItem: true, description: "Лук пронзающий ветер." },
-    { name: "Посох творца", slot: "weapon", armorType: "weapon", requiredLevel: 30, requiredClass: "mage", bonusAttack: 65, bonusIntelligence: 18, price: 10000, isShopItem: true, description: "Посох созданный богами." },
-    { name: "Немезида", slot: "weapon", armorType: "weapon", requiredLevel: 30, requiredClass: "assassin", bonusAttack: 65, bonusAgility: 18, price: 10000, isShopItem: true, description: "Оружие возмездия." },
-    { name: "Громовержец", slot: "weapon", armorType: "weapon", requiredLevel: 35, requiredClass: "warrior", bonusAttack: 110, bonusStrength: 18, bonusVitality: 10, price: 20000, isShopItem: true, description: "Молот мечущий громы." },
-    { name: "Небесная стрела", slot: "weapon", armorType: "weapon", requiredLevel: 35, requiredClass: "archer", bonusAttack: 95, bonusAgility: 20, price: 20000, isShopItem: true, description: "Стрела сбивающая звёзды." },
-    { name: "Посох вечности", slot: "weapon", armorType: "weapon", requiredLevel: 35, requiredClass: "mage", bonusAttack: 85, bonusIntelligence: 24, price: 20000, isShopItem: true, description: "Посох существующий вне времени." },
-    { name: "Клинок тени", slot: "weapon", armorType: "weapon", requiredLevel: 35, requiredClass: "assassin", bonusAttack: 85, bonusAgility: 24, price: 20000, isShopItem: true, description: "Клинок из чистой тьмы." },
-    { name: "Эфириум", slot: "weapon", armorType: "weapon", requiredLevel: 40, requiredClass: "warrior", bonusAttack: 140, bonusStrength: 24, bonusVitality: 14, price: 40000, isShopItem: true, description: "Оружие из эфирной стали." },
-    { name: "Созвездие", slot: "weapon", armorType: "weapon", requiredLevel: 40, requiredClass: "archer", bonusAttack: 120, bonusAgility: 28, price: 40000, isShopItem: true, description: "Лук выкованный из звёзд." },
-    { name: "Бесконечность", slot: "weapon", armorType: "weapon", requiredLevel: 40, requiredClass: "mage", bonusAttack: 110, bonusIntelligence: 32, price: 40000, isShopItem: true, description: "Посох бесконечной магии." },
-    { name: "Призрак", slot: "weapon", armorType: "weapon", requiredLevel: 40, requiredClass: "assassin", bonusAttack: 110, bonusAgility: 32, price: 40000, isShopItem: true, description: "Кинжал невидимый для врага." },
+    // Loc 1: 🌿 Начальная поляна (reqLevel 1)
+    { name: "Деревянный меч", slot: "weapon", armorType: "weapon", requiredLevel: 1, requiredClass: "warrior", bonusAttack: 5, price: 50, isShopItem: true, locationId: 1, description: "Простой деревянный меч." },
+    { name: "Короткий лук", slot: "weapon", armorType: "weapon", requiredLevel: 1, requiredClass: "archer", bonusAttack: 4, bonusAgility: 1, price: 50, isShopItem: true, locationId: 1, description: "Лёгкий лук для охоты." },
+    { name: "Ученический посох", slot: "weapon", armorType: "weapon", requiredLevel: 1, requiredClass: "mage", bonusAttack: 3, bonusIntelligence: 2, price: 50, isShopItem: true, locationId: 1, description: "Простой посох." },
+    { name: "Ржавый кинжал", slot: "weapon", armorType: "weapon", requiredLevel: 1, requiredClass: "assassin", bonusAttack: 3, bonusAgility: 2, price: 50, isShopItem: true, locationId: 1, description: "Старый но острый кинжал." },
+    { name: "Тряпичная шапка", slot: "head", armorType: "cloth", requiredLevel: 1, bonusDefense: 2, price: 30, isShopItem: true, locationId: 1, description: "Простая шапка." },
+    { name: "Кожаный жилет", slot: "chest", armorType: "leather", requiredLevel: 1, bonusDefense: 3, bonusHp: 10, price: 60, isShopItem: true, locationId: 1, description: "Лёгкий кожаный жилет." },
+    { name: "Сапоги странника", slot: "feet", armorType: "leather", requiredLevel: 1, bonusDefense: 2, price: 40, isShopItem: true, locationId: 1, description: "Прочные сапоги для дальних странствий." },
+    // Loc 2: 🌲 Тёмный лес (reqLevel 5)
+    { name: "Железный меч", slot: "weapon", armorType: "weapon", requiredLevel: 5, requiredClass: "warrior", bonusAttack: 12, bonusStrength: 2, price: 200, isShopItem: true, locationId: 2, description: "Надёжный железный меч." },
+    { name: "Длинный лук", slot: "weapon", armorType: "weapon", requiredLevel: 5, requiredClass: "archer", bonusAttack: 10, bonusAgility: 2, price: 200, isShopItem: true, locationId: 2, description: "Лук с хорошей дальностью." },
+    { name: "Магический жезл", slot: "weapon", armorType: "weapon", requiredLevel: 5, requiredClass: "mage", bonusAttack: 8, bonusIntelligence: 3, price: 200, isShopItem: true, locationId: 2, description: "Жезл с магическим камнем." },
+    { name: "Стальной кинжал", slot: "weapon", armorType: "weapon", requiredLevel: 5, requiredClass: "assassin", bonusAttack: 8, bonusAgility: 3, price: 200, isShopItem: true, locationId: 2, description: "Острый стальной кинжал." },
+    { name: "Железный шлем", slot: "head", armorType: "plate", requiredLevel: 5, requiredClass: "warrior", bonusDefense: 6, bonusHp: 10, price: 150, isShopItem: true, locationId: 2, description: "Тяжёлый железный шлем." },
+    { name: "Кольчуга", slot: "chest", armorType: "plate", requiredLevel: 5, requiredClass: "warrior", bonusDefense: 10, bonusHp: 25, price: 300, isShopItem: true, locationId: 2, description: "Надёжная кольчуга." },
+    { name: "Кожаные штаны", slot: "legs", armorType: "leather", requiredLevel: 5, bonusDefense: 5, bonusAgility: 1, price: 120, isShopItem: true, locationId: 2, description: "Лёгкие кожаные штаны." },
+    // Loc 3: 🌊 Болотные топи (reqLevel 10)
+    { name: "Берсеркер", slot: "weapon", armorType: "weapon", requiredLevel: 10, requiredClass: "warrior", bonusAttack: 22, bonusStrength: 3, bonusVitality: 2, price: 500, isShopItem: true, locationId: 3, description: "Тяжёлый двуручный меч." },
+    { name: "Ледяные стрелы", slot: "weapon", armorType: "weapon", requiredLevel: 10, requiredClass: "archer", bonusAttack: 18, bonusAgility: 4, price: 500, isShopItem: true, locationId: 3, description: "Стрелы с ледяным наконечником." },
+    { name: "Посох огня", slot: "weapon", armorType: "weapon", requiredLevel: 10, requiredClass: "mage", bonusAttack: 16, bonusIntelligence: 5, price: 500, isShopItem: true, locationId: 3, description: "Посох наполненный огненной магией." },
+    { name: "Когти тьмы", slot: "weapon", armorType: "weapon", requiredLevel: 10, requiredClass: "assassin", bonusAttack: 16, bonusAgility: 5, price: 500, isShopItem: true, locationId: 3, description: "Парные когти отравленные ядом." },
+    { name: "Стальной нагрудник", slot: "chest", armorType: "plate", requiredLevel: 10, requiredClass: "warrior", bonusDefense: 18, bonusHp: 40, bonusVitality: 2, price: 600, isShopItem: true, locationId: 3, description: "Тяжёлый стальной нагрудник." },
+    { name: "Плащ ткача", slot: "chest", armorType: "cloth", requiredLevel: 10, requiredClass: "mage", bonusDefense: 8, bonusHp: 20, bonusIntelligence: 3, price: 400, isShopItem: true, locationId: 3, description: "Магический плащ." },
+    { name: "Стальные поножи", slot: "legs", armorType: "plate", requiredLevel: 10, requiredClass: "warrior", bonusDefense: 12, bonusVitality: 1, price: 350, isShopItem: true, locationId: 3, description: "Тяжёлые стальные поножи." },
+    // Loc 4: 🏔️ Каменистое плато (reqLevel 15)
+    { name: "Мифриловый меч", slot: "weapon", armorType: "weapon", requiredLevel: 15, requiredClass: "warrior", bonusAttack: 35, bonusStrength: 5, price: 1200, isShopItem: true, locationId: 4, description: "Лёгкий и прочный мифриловый меч." },
+    { name: "Эльфийский лук", slot: "weapon", armorType: "weapon", requiredLevel: 15, requiredClass: "archer", bonusAttack: 28, bonusAgility: 6, price: 1200, isShopItem: true, locationId: 4, description: "Эльфийский лук." },
+    { name: "Посох бурь", slot: "weapon", armorType: "weapon", requiredLevel: 15, requiredClass: "mage", bonusAttack: 25, bonusIntelligence: 7, price: 1200, isShopItem: true, locationId: 4, description: "Посох призывающий молнии." },
+    { name: "Теневые клинки", slot: "weapon", armorType: "weapon", requiredLevel: 15, requiredClass: "assassin", bonusAttack: 25, bonusAgility: 7, price: 1200, isShopItem: true, locationId: 4, description: "Клинки из теневой стали." },
+    // Loc 5: 🏛️ Забытые руины (reqLevel 20)
+    { name: "Рунический меч", slot: "weapon", armorType: "weapon", requiredLevel: 20, requiredClass: "warrior", bonusAttack: 48, bonusStrength: 7, bonusVitality: 3, price: 2500, isShopItem: true, locationId: 5, description: "Меч с древними рунами." },
+    { name: "Арбалет", slot: "weapon", armorType: "weapon", requiredLevel: 20, requiredClass: "archer", bonusAttack: 40, bonusAgility: 8, price: 2500, isShopItem: true, locationId: 5, description: "Мощный механический арбалет." },
+    { name: "Посох времени", slot: "weapon", armorType: "weapon", requiredLevel: 20, requiredClass: "mage", bonusAttack: 35, bonusIntelligence: 10, price: 2500, isShopItem: true, locationId: 5, description: "Посох искажающий время." },
+    { name: "Убийца драконов", slot: "weapon", armorType: "weapon", requiredLevel: 20, requiredClass: "assassin", bonusAttack: 35, bonusAgility: 10, price: 2500, isShopItem: true, locationId: 5, description: "Кинжал убивавший драконов." },
+    // Loc 6: ❄️ Ледяные вершины (reqLevel 25)
+    { name: "Палач", slot: "weapon", armorType: "weapon", requiredLevel: 25, requiredClass: "warrior", bonusAttack: 65, bonusStrength: 10, bonusVitality: 5, price: 5000, isShopItem: true, locationId: 6, description: "Массивный топор палача." },
+    { name: "Лук феникса", slot: "weapon", armorType: "weapon", requiredLevel: 25, requiredClass: "archer", bonusAttack: 55, bonusAgility: 12, price: 5000, isShopItem: true, locationId: 6, description: "Лук из пера феникса." },
+    { name: "Посох бездны", slot: "weapon", armorType: "weapon", requiredLevel: 25, requiredClass: "mage", bonusAttack: 50, bonusIntelligence: 14, price: 5000, isShopItem: true, locationId: 6, description: "Посох из глубин бездны." },
+    { name: "Коса смерти", slot: "weapon", armorType: "weapon", requiredLevel: 25, requiredClass: "assassin", bonusAttack: 50, bonusAgility: 14, price: 5000, isShopItem: true, locationId: 6, description: "Коса несущая смерть." },
+    // Loc 7: 🌋 Вулканические недра (reqLevel 30)
+    { name: "Легенда", slot: "weapon", armorType: "weapon", requiredLevel: 30, requiredClass: "warrior", bonusAttack: 85, bonusStrength: 14, bonusVitality: 8, price: 10000, isShopItem: true, locationId: 7, description: "Меч о котором слагают легенды." },
+    { name: "Ветролом", slot: "weapon", armorType: "weapon", requiredLevel: 30, requiredClass: "archer", bonusAttack: 72, bonusAgility: 16, price: 10000, isShopItem: true, locationId: 7, description: "Лук пронзающий ветер." },
+    { name: "Посох творца", slot: "weapon", armorType: "weapon", requiredLevel: 30, requiredClass: "mage", bonusAttack: 65, bonusIntelligence: 18, price: 10000, isShopItem: true, locationId: 7, description: "Посох созданный богами." },
+    { name: "Немезида", slot: "weapon", armorType: "weapon", requiredLevel: 30, requiredClass: "assassin", bonusAttack: 65, bonusAgility: 18, price: 10000, isShopItem: true, locationId: 7, description: "Оружие возмездия." },
+    // Loc 8: 🌫️ Туманное ущелье (reqLevel 35)
+    { name: "Громовержец", slot: "weapon", armorType: "weapon", requiredLevel: 35, requiredClass: "warrior", bonusAttack: 110, bonusStrength: 18, bonusVitality: 10, price: 20000, isShopItem: true, locationId: 8, description: "Молот мечущий громы." },
+    { name: "Небесная стрела", slot: "weapon", armorType: "weapon", requiredLevel: 35, requiredClass: "archer", bonusAttack: 95, bonusAgility: 20, price: 20000, isShopItem: true, locationId: 8, description: "Стрела сбивающая звёзды." },
+    { name: "Посох вечности", slot: "weapon", armorType: "weapon", requiredLevel: 35, requiredClass: "mage", bonusAttack: 85, bonusIntelligence: 24, price: 20000, isShopItem: true, locationId: 8, description: "Посох существующий вне времени." },
+    { name: "Клинок тени", slot: "weapon", armorType: "weapon", requiredLevel: 35, requiredClass: "assassin", bonusAttack: 85, bonusAgility: 24, price: 20000, isShopItem: true, locationId: 8, description: "Клинок из чистой тьмы." },
+    // Loc 9: 🔮 Затерянный храм (reqLevel 40)
+    { name: "Эфириум", slot: "weapon", armorType: "weapon", requiredLevel: 40, requiredClass: "warrior", bonusAttack: 140, bonusStrength: 24, bonusVitality: 14, price: 40000, isShopItem: true, locationId: 9, description: "Оружие из эфирной стали." },
+    { name: "Созвездие", slot: "weapon", armorType: "weapon", requiredLevel: 40, requiredClass: "archer", bonusAttack: 120, bonusAgility: 28, price: 40000, isShopItem: true, locationId: 9, description: "Лук выкованный из звёзд." },
+    { name: "Бесконечность", slot: "weapon", armorType: "weapon", requiredLevel: 40, requiredClass: "mage", bonusAttack: 110, bonusIntelligence: 32, price: 40000, isShopItem: true, locationId: 9, description: "Посох бесконечной магии." },
+    { name: "Призрак", slot: "weapon", armorType: "weapon", requiredLevel: 40, requiredClass: "assassin", bonusAttack: 110, bonusAgility: 32, price: 40000, isShopItem: true, locationId: 9, description: "Кинжал невидимый для врага." },
 
     // == MONSTER DROP ITEMS (not sold in shop) ==
     { name: "Клык кабана", slot: "weapon", armorType: "weapon", requiredLevel: 2, bonusAttack: 4, price: 0, isShopItem: false, description: "Острый клык дикого кабана." },
@@ -856,4 +864,27 @@ export async function migrateNewNpcs() {
     { name: "Эфирный Варильщик", title: "Трансцендентный алхимик", locationId: 10, greeting: "Реальность — лишь ингредиент. Я варю зелья из самой материи мироздания.", advice: "", npcType: "alchemist", healCostPerHp: 0 },
   ]);
   logger.info("20 new NPCs added (10 shopkeepers + 10 alchemists).");
+}
+
+// ─── EQUIPMENT LOCATION MIGRATION ───────────────────────────────────────
+// Maps requiredLevel to the locationId that should own items of that tier.
+const LEVEL_TO_LOCATION: Record<number, number> = {
+  1: 1, 5: 2, 10: 3, 15: 4, 20: 5,
+  25: 6, 30: 7, 35: 8, 40: 9,
+};
+
+export async function migrateEquipmentLocations() {
+  const uncategorized = await db.query.equipmentItems.findMany({
+    where: (eqi, { isNull: isNullOp }) => isNullOp(eqi.locationId),
+  });
+  if (uncategorized.length === 0) {
+    logger.info("Equipment locations already migrated, skipping.");
+    return;
+  }
+  logger.info({ count: uncategorized.length }, "Migrating equipment item locations...");
+  for (const item of uncategorized) {
+    const locId = LEVEL_TO_LOCATION[item.requiredLevel] || Math.ceil(item.requiredLevel / 5) + 1;
+    await db.update(equipmentItems).set({ locationId: locId }).where(eq(equipmentItems.id, item.id));
+  }
+  logger.info("Equipment locations migrated.");
 }
