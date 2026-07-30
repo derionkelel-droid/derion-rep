@@ -1103,7 +1103,7 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
         if (n.npcType === "healer") {
           const maxHp = calculateMaxHp(player);
           const missing = maxHp - player.currentHp;
-          const cost = missing * (n.healCostPerHp || 3);
+          const cost = Math.ceil(missing / 25) * (n.healCostPerHp || 3);
           const healLabel = player.currentHp >= maxHp
             ? "❤️ Полное HP"
             : `❤️ Лечиться (${cost}🪙 за ${missing} HP)`;
@@ -1151,7 +1151,7 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
       if (npc.npcType === "healer") {
         const maxHp = calculateMaxHp(player);
         const missing = maxHp - player.currentHp;
-        const cost = missing * (npc.healCostPerHp || 3);
+        const cost = Math.ceil(missing / 25) * (npc.healCostPerHp || 3);
         const healLabel = player.currentHp >= maxHp
           ? "❤️ Полное HP"
           : `❤️ Лечиться (${cost}🪙 за ${missing} HP)`;
@@ -1201,7 +1201,7 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
           return;
         }
 
-        const cost = missing * (healNpc.healCostPerHp || 3);
+        const cost = Math.ceil(missing / 25) * (healNpc.healCostPerHp || 3);
         if (player.gold < cost) {
           await ctx.answerCallbackQuery({
             text: `❌ Недостаточно золота! Нужно ${cost}, у тебя ${player.gold}`,
@@ -1221,7 +1221,7 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
 
 📊 <b>Диагноз:</b>
 ❤️ ${player.currentHp}/${maxHp} HP (нужно восстановить ${missing})
-💰 Цена: 🪙${cost} (${healNpc.healCostPerHp}🪙 за 1 HP)
+💰 Цена: 🪙${cost} (${healNpc.healCostPerHp}🪙 за 25 HP)
 🪙 Твои монеты: ${player.gold}
 
 <i>Подтверди лечение?</i>`,
@@ -1253,7 +1253,7 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
           return;
         }
 
-        const cost = missing * (healNpc.healCostPerHp || 3);
+        const cost = Math.ceil(missing / 25) * (healNpc.healCostPerHp || 3);
         if (player.gold < cost) {
           await ctx.answerCallbackQuery({ text: "❌ Недостаточно золота!" });
           return;
