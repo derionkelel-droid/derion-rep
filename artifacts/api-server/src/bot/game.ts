@@ -559,21 +559,21 @@ export type SkillDef = {
 
 export const SKILLS: SkillDef[] = [
   // ── WARRIOR ──
-  { id: "war_r", name: "Мощный удар", description: "Урон: (atk×сила)/3", skillType: "basic", icon: "💥", classRestriction: "warrior" },
-  { id: "war_s", name: "Пробивающий рывок", description: "Игнорирует блок врага", skillType: "special", icon: "⚡", classRestriction: "warrior" },
-  { id: "war_u", name: "Смертельный вихрь", description: "Атакует 3 зоны сразу", skillType: "ultimate", icon: "🌀", classRestriction: "warrior" },
+  { id: "war_r", name: "Мощный удар", description: "Урон: (atk×сила)/6", skillType: "basic", icon: "💥", classRestriction: "warrior" },
+  { id: "war_s", name: "Защитная стойка", description: "Урон врага -50% в раунде", skillType: "special", icon: "🛡️", classRestriction: "warrior" },
+  { id: "war_u", name: "Железная воля", description: "Автоблок атаки врага", skillType: "ultimate", icon: "🧱", classRestriction: "warrior" },
   // ── MAGE ──
-  { id: "mag_r", name: "Огненный шар", description: "Урон: (atk×инт)/3", skillType: "basic", icon: "🔥", classRestriction: "mage" },
-  { id: "mag_s", name: "Ледяная игла", description: "Игнорирует блок врага", skillType: "special", icon: "❄️", classRestriction: "mage" },
-  { id: "mag_u", name: "Цепная молния", description: "Атакует все 5 зон разом!", skillType: "ultimate", icon: "⚡", classRestriction: "mage" },
+  { id: "mag_r", name: "Огненный шар", description: "Урон: (atk×инт)/6", skillType: "basic", icon: "🔥", classRestriction: "mage" },
+  { id: "mag_s", name: "Ледяной щит", description: "Урон врага -50% в раунде", skillType: "special", icon: "❄️", classRestriction: "mage" },
+  { id: "mag_u", name: "Магический барьер", description: "Автоблок атаки врага", skillType: "ultimate", icon: "🔮", classRestriction: "mage" },
   // ── ARCHER ──
-  { id: "arc_r", name: "Прицельный выстрел", description: "Игнорирует блок врага", skillType: "basic", icon: "🎯", classRestriction: "archer" },
-  { id: "arc_s", name: "Уклоняющий выстрел", description: "Атака + автоблок атаки врага", skillType: "special", icon: "💨", classRestriction: "archer" },
-  { id: "arc_u", name: "Град стрел", description: "Атакует все 5 зон разом!", skillType: "ultimate", icon: "🏹", classRestriction: "archer" },
+  { id: "arc_r", name: "Меткий выстрел", description: "Урон: (atk×ловк)/6", skillType: "basic", icon: "🎯", classRestriction: "archer" },
+  { id: "arc_s", name: "Уклонение", description: "Урон врага -50% в раунде", skillType: "special", icon: "💨", classRestriction: "archer" },
+  { id: "arc_u", name: "Кошачья реакция", description: "Автоблок атаки врага", skillType: "ultimate", icon: "🐱", classRestriction: "archer" },
   // ── ASSASSIN ──
-  { id: "ass_r", name: "Удар из тени", description: "Игнорирует защиту врага", skillType: "basic", icon: "🗡️", classRestriction: "assassin" },
-  { id: "ass_s", name: "Отравленный клинок", description: "Двойной урон, но малый шанс", skillType: "special", icon: "☠️", classRestriction: "assassin" },
-  { id: "ass_u", name: "Смертельный танец", description: "Две атаки подряд: урон ×2", skillType: "ultimate", icon: "💫", classRestriction: "assassin" },
+  { id: "ass_r", name: "Удар из тени", description: "Урон: (atk×ловк)/6", skillType: "basic", icon: "🗡️", classRestriction: "assassin" },
+  { id: "ass_s", name: "Теневой покров", description: "Урон врага -50% в раунде", skillType: "special", icon: "🌑", classRestriction: "assassin" },
+  { id: "ass_u", name: "Смертельный танец", description: "Автоблок атаки врага", skillType: "ultimate", icon: "💫", classRestriction: "assassin" },
 ];
 
 export function getMainStat(player: Player): string {
@@ -605,7 +605,7 @@ export function canUseSkill(skill: SkillDef, hits: number, blocks: number, misse
 
 export function calculateSkillDamage(player: Player, atk: number): number {
   const stat = getMainStatValue(player);
-  return Math.floor(atk * (stat / 3));
+  return Math.floor(atk * (stat / 6));
 }
 
 // ─── POTION RECIPES ─────────────────────────────────────────────────────
