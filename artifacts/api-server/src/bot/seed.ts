@@ -802,3 +802,42 @@ export async function migrateJunkBuyers() {
   ]);
   logger.info("10 junk buyer NPCs added.");
 }
+
+// ─── SHOPKEEPER & ALCHEMIST MIGRATION ─────────────────────────────────
+export async function migrateNewNpcs() {
+  const existingShopkeeper = await db.query.npcs.findFirst({
+    where: (n, { eq: op }) => op(n.npcType, "shopkeeper"),
+  });
+  if (existingShopkeeper) {
+    logger.info("Shopkeeper & alchemist NPCs already exist, skipping.");
+    return;
+  }
+
+  logger.info("Adding shopkeeper & alchemist NPCs...");
+  await db.insert(npcs).values([
+    // ── SHOPKEEPERS ─────────────────────────────────────────────────────
+    { name: "Торговец Олег", title: "Лавочник", locationId: 1, greeting: "Добро пожаловать в мою скромную лавку! Есть отличные вещи для новичков.", advice: "", npcType: "shopkeeper", healCostPerHp: 0 },
+    { name: "Купец Борис", title: "Лесной ларечник", locationId: 2, greeting: "В лесу всего полно, но продаю только лучшее! Заходи, выбирай.", advice: "", npcType: "shopkeeper", healCostPerHp: 0 },
+    { name: "Ларёк Квак", title: "Болотный спекулянт", locationId: 3, greeting: "Всё, что утонуло — теперь моё. Подбирай, пока не сгнило!", advice: "", npcType: "shopkeeper", healCostPerHp: 0 },
+    { name: "Горный Торгаш", title: "Рудной барыга", locationId: 4, greeting: "Камни — моя страсть. А твои монеты — моя цель. Выбирай.", advice: "", npcType: "shopkeeper", healCostPerHp: 0 },
+    { name: "Некро-Лавка", title: "Мёртвый торгаш", locationId: 5, greeting: "Мёртвым вещи уже не нужны... а тебе — в самый раз!", advice: "", npcType: "shopkeeper", healCostPerHp: 0 },
+    { name: "Снежный Купец", title: "Морозная лавка", locationId: 6, greeting: "Замёрз? Мой товар согреет твой кошелёк, если его открыть.", advice: "", npcType: "shopkeeper", healCostPerHp: 0 },
+    { name: "Пепельный Торговец", title: "Лавка на углях", locationId: 7, greeting: "Жаркие цены для жарких мест. Не обожгись!", advice: "", npcType: "shopkeeper", healCostPerHp: 0 },
+    { name: "Теневой Лавочник", title: "Серая лавка", locationId: 8, greeting: "Не спрашивай откуда. Просто бери и плати.", advice: "", npcType: "shopkeeper", healCostPerHp: 0 },
+    { name: "Храмовой Купец", title: "Божественные товары", locationId: 9, greeting: "Боги благословили этот товар. И цены божественные, не спорь.", advice: "", npcType: "shopkeeper", healCostPerHp: 0 },
+    { name: "Звёздный Барыга", title: "Эфирный базар", locationId: 10, greeting: "Этот товар старше твоей цивилизации. Цена соответствующая.", advice: "", npcType: "shopkeeper", healCostPerHp: 0 },
+
+    // ── ALCHEMISTS ──────────────────────────────────────────────────────
+    { name: "Алхимик Иван", title: "Зелёный зельевар", locationId: 1, greeting: "Свежие зелья! Недорого! Лесные травы — лучшая основа для алхимии!", advice: "", npcType: "alchemist", healCostPerHp: 0 },
+    { name: "Травник Елена", title: "Лесная аптекарша", locationId: 2, greeting: "В лесу каждый куст — лекарство или яд. Я знаю разницу.", advice: "", npcType: "alchemist", healCostPerHp: 0 },
+    { name: "Болотный Варильщик", title: "Ядовитый алхимик", locationId: 3, greeting: "Болото даёт лучшие яды... и лучшие противоядия. Выбирай.", advice: "", npcType: "alchemist", healCostPerHp: 0 },
+    { name: "Алхимик Степан", title: "Камневар", locationId: 4, greeting: "Кристальная пыль и горная руда — основа моих эликсиров. Не сыпь на пол.", advice: "", npcType: "alchemist", healCostPerHp: 0 },
+    { name: "Гробовой Котельщик", title: "Некро-алхимик", locationId: 5, greeting: "Из праха и костей я варю такие зелья, что мёртвые завидуют.", advice: "", npcType: "alchemist", healCostPerHp: 0 },
+    { name: "Хладовой Зельевар", title: "Морозный эликсирщик", locationId: 6, greeting: "Мои зелья холодят кровь, а врагам — последнее дыхание.", advice: "", npcType: "alchemist", healCostPerHp: 0 },
+    { name: "Пепловар", title: "Вулканический ретортник", locationId: 7, greeting: "Лава кипит, зелья варятся. Осторожно — горячо!", advice: "", npcType: "alchemist", healCostPerHp: 0 },
+    { name: "Теневар", title: "Алхимик тьмы", locationId: 8, greeting: "Тьма — не зло. Тьма — ресурс. Из неё я варю силу.", advice: "", npcType: "alchemist", healCostPerHp: 0 },
+    { name: "Священный Алхимик", title: "Божественный зельевар", locationId: 9, greeting: "Благословение богов в каждом флаконе. Пей — и станешь сильнее.", advice: "", npcType: "alchemist", healCostPerHp: 0 },
+    { name: "Эфирный Варильщик", title: "Трансцендентный алхимик", locationId: 10, greeting: "Реальность — лишь ингредиент. Я варю зелья из самой материи мироздания.", advice: "", npcType: "alchemist", healCostPerHp: 0 },
+  ]);
+  logger.info("20 new NPCs added (10 shopkeepers + 10 alchemists).");
+}

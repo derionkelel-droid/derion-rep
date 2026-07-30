@@ -38,6 +38,10 @@ import {
   getAnyActiveQuest,
   createQuest,
   incrementQuestProgress,
+  POTION_RECIPES,
+  canCraftPotion,
+  craftPotion,
+  formatActiveEffects,
   type Player,
 } from "./game";
 import {
@@ -967,7 +971,7 @@ ${item.description ? `📝 ${item.description}` : ""}`;
 
       const kb = new InlineKeyboard()
         .text("✅ Купить", `buy_confirm_${item.id}`)
-        .text("🔙 Назад", "shop");
+        .text("🔙 Назад", "npc");
 
       await ctx.editMessageText(
         `🏪 <b>Подтверждение покупки</b>
@@ -1102,6 +1106,9 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
           advisor: "🧙",
           healer: "❤️",
           quest_giver: "📜",
+          junk_buyer: "💰",
+          shopkeeper: "🏪",
+          alchemist: "🧪",
         };
         let msg = `🧑‍🤝‍🧑 <b>Жители локации:</b>\n━━━━━━━━━━━━━━━\n\n`;
         const kb = new InlineKeyboard();
@@ -1188,6 +1195,40 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
         kb.text("💰 Продать хлам", `junk_sell_all`).row();
         kb.row();
       }
+      if (npc.npcType === "shopkeeper") {
+        // Show shop items directly
+        const shopItems = await db.query.equipmentItems.findMany({
+          where: (eqi, { and: andOp, eq: eqOp, lte }) =>
+            andOp(eqOp(eqi.isShopItem, true), lte(eqi.requiredLevel, player.level)),
+        });
+        if (shopItems.length === 0) {
+          await ctx.editMessageText("🏪 В лавке пока пусто.\n\n<i>Загляни позже, может появится товар.</i>", {
+            parse_mode: "HTML",
+            reply_markup: new InlineKeyboard().text("🔙 Назад", "npc"),
+          });
+          return;
+        }
+        await ctx.editMessageText(
+          `🏪 <b>${npc.name}</b> — ${npc.title}\n━━━━━━━━━━━━━━━\n\n🪙 Твои монеты: ${player.gold}\n\nВыбери предмет для покупки:`,
+          { parse_mode: "HTML", reply_markup: shopKeyboard(shopItems.map((i) => ({ id: i.id, name: i.name, price: i.price }))) },
+        );
+        return;
+      }
+      if (npc.npcType === "alchemist") {
+        // Show potion recipes
+        let alchMsg = `🧪 <b>${npc.name}</b> — ${npc.title}\n━━━━━━━━━━━━━━━\n\n💬 <i>"${npc.greeting}"</i>\n\n<b>Доступные зелья:</b>\n`;
+        const alchKb = new InlineKeyboard();
+        for (let i = 0; i < POTION_RECIPES.length; i++) {
+          const r = POTION_RECIPES[i];
+          const check = await canCraftPotion(player.id, r);
+          const status = check.ok ? "✅" : "❌";
+          alchMsg += `\n${status} <b>${r.name}</b>\n  ${r.description}\n  💰 ${r.goldCost}🪙 | ${r.reagents.map((rg) => `${rg.junkName} x${rg.quantity}`).join(", ")}\n`;
+          if (check.ok) alchKb.text(`🧪 ${r.name}`, `alch_brew_${i}`).row();
+        }
+        alchKb.text("🔙 Назад", "npc");
+        await ctx.editMessageText(alchMsg, { parse_mode: "HTML", reply_markup: alchKb });
+        return;
+      }
       kb.text("🔙 Назад", "npc");
 
       const adviceText = npc.advice ? `\n💡 <b>Совет:</b> ${npc.advice}` : "";
@@ -1199,6 +1240,31 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
 💬 <i>"${npc.greeting}"</i>${adviceText}`,
         { parse_mode: "HTML", reply_markup: kb },
       );
+      return;
+    }
+
+    // ── ALCHEMIST BREW ──────────────────────────────────────────────────
+    if (data.startsWith("alch_brew_")) {
+      const recipeIdx = parseInt(data.replace("alch_brew_", ""));
+      if (isNaN(recipeIdx) || recipeIdx < 0 || recipeIdx >= POTION_RECIPES.length) return;
+
+      const player = await getPlayer(telegramId);
+      if (!player) return;
+
+      const recipe = POTION_RECIPES[recipeIdx];
+
+      try {
+        await craftPotion(player.id, recipe);
+        await ctx.answerCallbackQuery({ text: `✅ ${recipe.name} создано! Эффект на ${recipe.durationMinutes} мин.` });
+
+        // Show updated potion list
+        await ctx.editMessageText(
+          `⚗️ <b>Зелье создано!</b>\n━━━━━━━━━━━━━━━\n\n✅ ${recipe.name}\n${recipe.description}\n\n🪙 Потрачено: ${recipe.goldCost}\n⌛ Длится: ${recipe.durationMinutes} мин.`,
+          { parse_mode: "HTML", reply_markup: new InlineKeyboard().text("🔙 Назад", "npc") },
+        );
+      } catch (err: any) {
+        await ctx.answerCallbackQuery({ text: `❌ ${err.message}` });
+      }
       return;
     }
 

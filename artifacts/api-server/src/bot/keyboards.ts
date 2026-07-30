@@ -6,11 +6,10 @@ export function mainMenuKeyboard() {
     .text("⚔️ Поход", "adventure")
     .text("🎒 Инвентарь", "inventory")
     .row()
-    .text("🏪 Магазин", "shop")
     .text("👤 Профиль", "profile")
-    .row()
     .text("🗺 Локации", "locations")
-    .text("🧙‍♂️ НПС", "npc");
+    .row()
+    .text("🧑‍🤝‍🧑 Жители", "npc");
 }
 
 export function raceKeyboard() {
@@ -118,7 +117,7 @@ export function shopKeyboard(items: { id: number; name: string; price: number }[
     kb.row();
   }
 
-  kb.text("🔙 Назад", "main_menu");
+  kb.text("🔙 Назад", "npc");
   return kb;
 }
 

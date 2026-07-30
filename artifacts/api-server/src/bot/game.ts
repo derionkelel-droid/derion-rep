@@ -1,4 +1,4 @@
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, lt, or } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   players,
@@ -13,6 +13,7 @@ import {
   quests,
   npcs,
   combatSessions,
+  playerEffects,
   type Player,
   type EquipmentItem,
   type JunkItem,
@@ -21,6 +22,7 @@ import {
   type EquipmentSlot,
   type Npc,
   type Quest,
+  type EffectType,
 } from "@workspace/db";
 
 // ─── RACE BONUSES ────────────────────────────────────────────────────────────
@@ -140,10 +142,13 @@ export async function loadEquippedStats(player: Player) {
     }
   }
 
+  // Include potion effect bonuses
+  const potionBonuses = await getActiveEffectsBonuses(player.id);
+
   return {
-    bonusHp: items.reduce((s, i) => s + i.bonusHp, 0),
-    bonusAttack: items.reduce((s, i) => s + i.bonusAttack, 0),
-    bonusDefense: items.reduce((s, i) => s + i.bonusDefense, 0),
+    bonusHp: items.reduce((s, i) => s + i.bonusHp, 0) + potionBonuses.bonusHp,
+    bonusAttack: items.reduce((s, i) => s + i.bonusAttack, 0) + potionBonuses.bonusAttack,
+    bonusDefense: items.reduce((s, i) => s + i.bonusDefense, 0) + potionBonuses.bonusDefense,
     bonusStr: items.reduce((s, i) => s + i.bonusStrength, 0),
     bonusAgi: items.reduce((s, i) => s + i.bonusAgility, 0),
     bonusInt: items.reduce((s, i) => s + i.bonusIntelligence, 0),
@@ -539,6 +544,187 @@ export async function incrementQuestProgress(playerId: number, monsterName: stri
   return { ...active, currentProgress: newProgress, isCompleted };
 }
 
+// ─── POTION RECIPES ─────────────────────────────────────────────────────
+
+export type PotionRecipe = {
+  name: string;
+  description: string;
+  effectType: EffectType;
+  magnitude: number;
+  durationMinutes: number;
+  goldCost: number;
+  reagents: { junkName: string; quantity: number }[];
+};
+
+export const POTION_RECIPES: PotionRecipe[] = [
+  {
+    name: "⚔️ Зелье силы",
+    description: "+5 к атаке на 30 минут",
+    effectType: "atk_boost",
+    magnitude: 5,
+    durationMinutes: 30,
+    goldCost: 20,
+    reagents: [
+      { junkName: "Сломанный клык", quantity: 2 },
+      { junkName: "Медвежий коготь", quantity: 1 },
+    ],
+  },
+  {
+    name: "🛡️ Зелье защиты",
+    description: "+5 к защите на 30 минут",
+    effectType: "def_boost",
+    magnitude: 5,
+    durationMinutes: 30,
+    goldCost: 20,
+    reagents: [
+      { junkName: "Троллья слизь", quantity: 2 },
+      { junkName: "Древесная смола", quantity: 1 },
+    ],
+  },
+  {
+    name: "❤️ Зелье здоровья",
+    description: "+20 к макс. HP на 30 минут",
+    effectType: "hp_regen",
+    magnitude: 20,
+    durationMinutes: 30,
+    goldCost: 25,
+    reagents: [
+      { junkName: "Медвежий мех", quantity: 2 },
+      { junkName: "Тёмная эссенция", quantity: 1 },
+    ],
+  },
+  {
+    name: "💥 Зелье ярости",
+    description: "+3 атаки и +3 защиты на 30 минут",
+    effectType: "berserk",
+    magnitude: 3,
+    durationMinutes: 30,
+    goldCost: 30,
+    reagents: [
+      { junkName: "Сгусток тьмы", quantity: 2 },
+      { junkName: "Огненная искра", quantity: 1 },
+      { junkName: "Кристальная пыль", quantity: 1 },
+    ],
+  },
+];
+
+// ─── PLAYER EFFECTS ────────────────────────────────────────────────────
+
+export async function createEffect(
+  playerId: number,
+  effectType: EffectType,
+  magnitude: number,
+  durationMinutes: number,
+) {
+  const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000);
+  await db.insert(playerEffects).values({
+    playerId,
+    effectType,
+    magnitude,
+    expiresAt,
+  });
+}
+
+export async function getActiveEffects(playerId: number) {
+  const now = new Date();
+  // Clean expired effects first
+  await db.delete(playerEffects).where(
+    and(eq(playerEffects.playerId, playerId), lt(playerEffects.expiresAt, now)),
+  );
+
+  const effects = await db.query.playerEffects.findMany({
+    where: (pe, { eq: op }) => op(pe.playerId, playerId),
+  });
+
+  return effects.filter((e) => new Date(e.expiresAt) > now);
+}
+
+const effectLabels: Record<EffectType, { label: string; icon: string }> = {
+  atk_boost: { label: "Атака", icon: "⚔️" },
+  def_boost: { label: "Защита", icon: "🛡️" },
+  hp_regen: { label: "Макс.HP", icon: "❤️" },
+  berserk: { label: "Атк+Защ", icon: "💥" },
+};
+
+export async function getActiveEffectsBonuses(playerId: number): Promise<{ bonusAttack: number; bonusDefense: number; bonusHp: number }> {
+  const active = await getActiveEffects(playerId);
+  let bonusAttack = 0;
+  let bonusDefense = 0;
+  let bonusHp = 0;
+  for (const e of active) {
+    if (e.effectType === "atk_boost") bonusAttack += e.magnitude;
+    else if (e.effectType === "def_boost") bonusDefense += e.magnitude;
+    else if (e.effectType === "hp_regen") bonusHp += e.magnitude;
+    else if (e.effectType === "berserk") { bonusAttack += e.magnitude; bonusDefense += e.magnitude; }
+  }
+  return { bonusAttack, bonusDefense, bonusHp };
+}
+
+export async function formatActiveEffects(playerId: number): Promise<string> {
+  const active = await getActiveEffects(playerId);
+  if (active.length === 0) return "";
+
+  const lines = active.map((e) => {
+    const info = effectLabels[e.effectType];
+    const remaining = Math.max(0, Math.ceil((new Date(e.expiresAt).getTime() - Date.now()) / 60000));
+    return `${info.icon} ${info.label} +${e.magnitude} (${remaining} мин)`;
+  });
+
+  return `\n\n🧪 <b>Активные эффекты:</b>\n` + lines.join("\n");
+}
+
+/** Check if a player can afford a potion (has enough of each reagent + gold) */
+export async function canCraftPotion(playerId: number, recipe: PotionRecipe) {
+  const player = await db.query.players.findFirst({ where: (p, { eq: op }) => op(p.id, playerId) });
+  if (!player) return { ok: false, reason: "Игрок не найден" };
+  if (player.gold < recipe.goldCost) return { ok: false, reason: `Недостаточно золота! Нужно: ${recipe.goldCost}` };
+
+  // Check reagent availability by name
+  for (const reagent of recipe.reagents) {
+    const junkInv = await db.query.junkInventory.findMany({
+      where: (ji, { and: a, eq: op }) => a(op(ji.playerId, playerId)),
+      with: { junkItem: true },
+    });
+    const matching = junkInv.filter((j) => j.junkItem.name === reagent.junkName);
+    const total = matching.reduce((sum, j) => sum + j.quantity, 0);
+    if (total < reagent.quantity) {
+      return { ok: false, reason: `Не хватает реагента: ${reagent.junkName} (нужно ${reagent.quantity}, есть ${total})` };
+    }
+  }
+
+  return { ok: true, player };
+}
+
+/** Consume reagents and gold to craft a potion, then apply the effect */
+export async function craftPotion(playerId: number, recipe: PotionRecipe) {
+  const canCraft = await canCraftPotion(playerId, recipe);
+  if (!canCraft.ok || !canCraft.player) throw new Error(canCraft.reason || "Crafting failed");
+
+  // Deduct gold
+  await db
+    .update(players)
+    .set({ gold: canCraft.player.gold - recipe.goldCost })
+    .where(eq(players.id, playerId));
+
+  // Deduct reagents
+  for (const reagent of recipe.reagents) {
+    let remaining = reagent.quantity;
+    const junkEntries = await db.query.junkInventory.findMany({
+      where: (ji, { and: a, eq: op }) => a(op(ji.playerId, playerId)),
+      with: { junkItem: true },
+    });
+    for (const entry of junkEntries.filter((j) => j.junkItem.name === reagent.junkName)) {
+      if (remaining <= 0) break;
+      const toRemove = Math.min(remaining, entry.quantity);
+      await removeJunkFromInventory(playerId, entry.junkItem.id, toRemove);
+      remaining -= toRemove;
+    }
+  }
+
+  // Apply effect
+  await createEffect(playerId, recipe.effectType, recipe.magnitude, recipe.durationMinutes);
+}
+
 // ─── FORMAT PROFILE ────────────────────────────────────────────────────
 
 export async function formatPlayerProfile(player: Player): Promise<string> {
@@ -554,6 +740,8 @@ export async function formatPlayerProfile(player: Player): Promise<string> {
     equipStr = "\n\n🎒 <b>Экипировка:</b>\n" + equip.items.map((i) => `• ${i.name}`).join("\n");
   }
 
+  const effectsStr = await formatActiveEffects(player.id);
+
   return `
 🎮 <b>${player.nickname}</b>
 ━━━━━━━━━━━━━━━
@@ -568,5 +756,5 @@ ${getRaceName(player.race as Race)} | ${getClassName(player.class as Class)}
 🏃 Ловкость: ${player.agility}
 🧠 Интеллект: ${player.intelligence}
 ❤️‍🔥 Живучесть: ${player.vitality}
-${player.freeStatPoints > 0 ? `\n✨ Свободных очков: ${player.freeStatPoints}` : ""}${equipStr}`;
+${player.freeStatPoints > 0 ? `\n✨ Свободных очков: ${player.freeStatPoints}` : ""}${equipStr}${effectsStr}`;
 }

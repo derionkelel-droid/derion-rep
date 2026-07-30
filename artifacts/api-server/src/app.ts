@@ -5,7 +5,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { startBot } from "./bot";
 import { MSK_TIMEZONE } from "./bot/time";
-import { seedGameData, migrateNpcs, migrateJunk, migrateJunkBuyers } from "./bot/seed";
+import { seedGameData, migrateNpcs, migrateJunk, migrateJunkBuyers, migrateNewNpcs } from "./bot/seed";
 import { initSchedulers } from "./bot/scheduler";
 
 const app: Express = express();
@@ -43,6 +43,7 @@ seedGameData()
   .then(() => migrateNpcs())
   .then(() => migrateJunk())
   .then(() => migrateJunkBuyers())
+  .then(() => migrateNewNpcs())
   .then(() => {
     initSchedulers();
     startBot();

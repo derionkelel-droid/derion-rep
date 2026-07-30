@@ -16,7 +16,7 @@ export type EquipmentSlot = (typeof equipmentSlots)[number];
 export const armorTypes = ["cloth", "leather", "plate", "weapon"] as const;
 export type ArmorType = (typeof armorTypes)[number];
 
-export const npcTypes = ["advisor", "healer", "quest_giver", "junk_buyer"] as const;
+export const npcTypes = ["advisor", "healer", "quest_giver", "junk_buyer", "shopkeeper", "alchemist"] as const;
 export type NpcType = (typeof npcTypes)[number];
 
 // ─── LOCATIONS ───────────────────────────────────────────────────────────────
@@ -278,6 +278,25 @@ export const insertJunkInventorySchema = createInsertSchema(junkInventory).omit(
 export type InsertJunkInventory = z.infer<typeof insertJunkInventorySchema>;
 export type JunkInventory = typeof junkInventory.$inferSelect;
 
+// ─── PLAYER EFFECTS (temporary potion buffs) ────────────────────────────
+export const effectTypes = ["atk_boost", "def_boost", "hp_regen", "berserk"] as const;
+export type EffectType = (typeof effectTypes)[number];
+
+export const playerEffects = pgTable("player_effects", {
+  id: serial("id").primaryKey(),
+  playerId: integer("player_id")
+    .notNull()
+    .references(() => players.id, { onDelete: "cascade" }),
+  effectType: text("effect_type", { enum: effectTypes }).notNull(),
+  magnitude: integer("magnitude").notNull().default(0),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPlayerEffectSchema = createInsertSchema(playerEffects).omit({ id: true, createdAt: true });
+export type InsertPlayerEffect = z.infer<typeof insertPlayerEffectSchema>;
+export type PlayerEffect = typeof playerEffects.$inferSelect;
+
 // ─── RELATIONS ─────────────────────────────────────────────────────────────
 
 import { relations } from "drizzle-orm";
@@ -329,5 +348,12 @@ export const junkInventoryRelations = relations(junkInventory, ({ one }) => ({
   junkItem: one(junkItems, {
     fields: [junkInventory.junkItemId],
     references: [junkItems.id],
+  }),
+}));
+
+export const playerEffectsRelations = relations(playerEffects, ({ one }) => ({
+  player: one(players, {
+    fields: [playerEffects.playerId],
+    references: [players.id],
   }),
 }));
