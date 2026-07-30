@@ -70,6 +70,7 @@ export function resolveRound(
   monsterDefense: number,
   equipBonusAtk = 0,
   equipBonusDef = 0,
+  round = 1,
 ): CombatResult {
   const monsterAttackZone = randomEnemyAttack();
   const monsterBlockZone = randomEnemyBlock();
@@ -96,7 +97,7 @@ export function resolveRound(
   const newPlayerHp = Math.max(0, player.currentHp - monsterDamage);
 
   const log: string[] = [];
-  log.push(`⚔️ <b>РАУНД!</b>`);
+  log.push(`⚔️ <b>РАУНД #${round}</b>`);
   log.push(`━━━━━━━━━━━━━━━`);
   log.push(
     `🗡️ Ты атакуешь <b>${ZONE_NAMES[playerAttackZone].replace("🎯 ", "")}</b>` +

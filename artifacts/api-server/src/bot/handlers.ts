@@ -27,6 +27,7 @@ import {
   createCombatSession,
   getCombatSession,
   updateCombatSessionHp,
+  incrementCombatRound,
   endCombat,
   getActiveQuest,
   getAnyActiveQuest,
@@ -343,10 +344,12 @@ export function registerHandlers(bot: Bot) {
           session.monsterDefense,
           equipStats.bonusAttack,
           equipStats.bonusDefense,
+          session.round,
         );
 
-        // Update monster HP in DB session
+        // Update monster HP in DB session and increment round
         await updateCombatSessionHp(player.id, result.monsterNewHp);
+        await incrementCombatRound(player.id);
 
         // Update player HP in DB
         await db
@@ -661,15 +664,26 @@ export function registerHandlers(bot: Bot) {
 
       const sortedItems = items.sort((a, b) => (a.isEquipped ? -1 : 1));
 
-      let msg = "🎒 <b>Инвентарь</b>\n━━━━━━━━━━━━━━━\n\n";
-      // Show currently equipped
-      msg += "<b>Экипировано:</b>\n";
-      for (const item of sortedItems.filter((i) => i.isEquipped)) {
-        msg += `${slotMap[item.slot] || item.slot}: ${item.name}\n`;
+      let msg = "🎒 <b>Инвентарь</b>\n━━━━━━━━━━━━━━━\n";
+
+      // Show currently equipped with visual slot indicators
+      const equippedItems = sortedItems.filter((i) => i.isEquipped);
+      if (equippedItems.length > 0) {
+        msg += `\n🟢 <b>Экипировано:</b>\n`;
+        for (const item of equippedItems) {
+          msg += `${slotMap[item.slot] || item.slot}: <b>${item.name}</b>\n`;
+        }
+      } else {
+        msg += `\n⚠️ <b>Экипировка отсутствует</b>\n`;
       }
-      msg += `\n📦 <b>Предметы:</b>\n`;
-      for (const item of sortedItems.filter((i) => !i.isEquipped)) {
-        msg += `• ${item.name} x${item.quantity} (${slotMap[item.slot] || item.slot})\n`;
+
+      // Show unequipped items
+      const unequippedItems = sortedItems.filter((i) => !i.isEquipped);
+      if (unequippedItems.length > 0) {
+        msg += `\n📦 <b>Сумка (${unequippedItems.length}):</b>\n`;
+        for (const item of unequippedItems) {
+          msg += `• ${item.name} x${item.quantity} (${slotMap[item.slot] || item.slot})\n`;
+        }
       }
 
       const kbItems = sortedItems.map((i) => ({

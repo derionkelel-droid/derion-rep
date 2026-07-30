@@ -352,6 +352,7 @@ export async function createCombatSession(
       monsterMaxHp: currentHp,
       monsterAttack: Math.floor(atk),
       monsterDefense: Math.floor(def),
+      round: 1,
       monsterLevel: monster.level,
       xpReward: monster.xpReward,
       goldMin: monster.goldRewardMin,
@@ -379,6 +380,19 @@ export async function updateCombatSessionHp(playerId: number, newHp: number) {
     .update(combatSessions)
     .set({ monsterHp: newHp })
     .where(eq(combatSessions.playerId, playerId));
+}
+
+export async function incrementCombatRound(playerId: number) {
+  const session = await db.query.combatSessions.findFirst({
+    where: (cs, { eq: op }) => op(cs.playerId, playerId),
+  });
+  if (!session) return 1;
+  const newRound = session.round + 1;
+  await db
+    .update(combatSessions)
+    .set({ round: newRound })
+    .where(eq(combatSessions.playerId, playerId));
+  return newRound;
 }
 
 export async function endCombat(playerId: number, cleanupSession = true) {
