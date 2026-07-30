@@ -232,6 +232,13 @@ export async function getNpcForLocation(locationId: number) {
   });
 }
 
+export async function getNpcsForLocation(locationId: number) {
+  return db.query.npcs.findMany({
+    where: (n, { eq: op }) => op(n.locationId, locationId),
+    orderBy: (n, { asc }) => asc(n.id),
+  });
+}
+
 export async function checkDrop(monsterId: number): Promise<EquipmentItem | null> {
   const drops = await db.query.monsterDrops.findMany({
     where: (md, { eq: op }) => op(md.monsterId, monsterId),

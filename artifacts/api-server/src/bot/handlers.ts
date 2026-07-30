@@ -9,6 +9,7 @@ import {
   getAvailableLocations,
   getRandomMonster,
   getNpcForLocation,
+  getNpcsForLocation,
   checkDrop,
   addItemToInventory,
   calculateMaxHp,
@@ -1073,11 +1074,78 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
       const player = await getPlayer(telegramId);
       if (!player) return;
 
-      const npc = await getNpcForLocation(player.currentLocationId!);
-      if (!npc) {
+      const npcs = await getNpcsForLocation(player.currentLocationId!);
+      if (npcs.length === 0) {
         await ctx.editMessageText("В этой локации нет NPC.", { reply_markup: mainMenuKeyboard() });
         return;
       }
+
+      // Show NPC selection list if multiple
+      if (npcs.length > 1) {
+        const typeIcons: Record<string, string> = {
+          advisor: "🧙",
+          healer: "❤️",
+          quest_giver: "📜",
+        };
+        let msg = `🧑‍🤝‍🧑 <b>Жители локации:</b>\n━━━━━━━━━━━━━━━\n\n`;
+        const kb = new InlineKeyboard();
+        for (const n of npcs) {
+          const icon = typeIcons[n.npcType] || "🧑";
+          msg += `${icon} <b>${n.name}</b> — ${n.title}\n`;
+          kb.text(`${icon} ${n.name}`, `npc_sel_${n.id}`).row();
+        }
+        kb.text("🔙 Назад", "main_menu");
+        await ctx.editMessageText(msg, { parse_mode: "HTML", reply_markup: kb });
+      } else {
+        // Single NPC — show directly
+        const n = npcs[0];
+        const kb = new InlineKeyboard();
+        if (n.npcType === "healer") {
+          const maxHp = calculateMaxHp(player);
+          const missing = maxHp - player.currentHp;
+          const cost = missing * (n.healCostPerHp || 3);
+          const healLabel = player.currentHp >= maxHp
+            ? "❤️ Полное HP"
+            : `❤️ Лечиться (${cost}🪙 за ${missing} HP)`;
+          if (player.currentHp < maxHp) kb.text(healLabel, `npc_heal_${n.id}`);
+          else kb.text(healLabel, "noop");
+          kb.row();
+        }
+        if (n.npcType === "quest_giver") {
+          const activeQuest = await getActiveQuest(player.id, n.id);
+          if (activeQuest) {
+            kb.text(`📜 Квест: ${activeQuest.currentProgress}/${activeQuest.targetQuantity}`, `npc_quest_${n.id}`);
+          } else {
+            kb.text("📜 Взять задание", `npc_quest_${n.id}`);
+          }
+          kb.row();
+        }
+        kb.text("🔙 Назад", "main_menu");
+
+        await ctx.editMessageText(
+          `🧙‍♂️ <b>${n.name}</b> — ${n.title}
+━━━━━━━━━━━━━━━
+
+💬 <i>"${n.greeting}"</i>
+
+💡 <b>Совет:</b> ${n.advice}`,
+          { parse_mode: "HTML", reply_markup: kb },
+        );
+      }
+      return;
+    }
+
+    // ── NPC SELECT ────────────────────────────────────────────────────
+    if (data.startsWith("npc_sel_")) {
+      const npcId = parseInt(data.replace("npc_sel_", ""));
+      if (isNaN(npcId)) return;
+
+      const player = await getPlayer(telegramId);
+      if (!player) return;
+
+      const allNpcs = await db.query.npcs.findMany({ where: (n, { eq: op }) => op(n.id, npcId) });
+      const npc = allNpcs[0];
+      if (!npc) return;
 
       const kb = new InlineKeyboard();
       if (npc.npcType === "healer") {
@@ -1094,16 +1162,13 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
       if (npc.npcType === "quest_giver") {
         const activeQuest = await getActiveQuest(player.id, npc.id);
         if (activeQuest) {
-          kb.text(
-            `📜 Квест: ${activeQuest.currentProgress}/${activeQuest.targetQuantity}`,
-            `npc_quest_${npc.id}`,
-          );
+          kb.text(`📜 Квест: ${activeQuest.currentProgress}/${activeQuest.targetQuantity}`, `npc_quest_${npc.id}`);
         } else {
           kb.text("📜 Взять задание", `npc_quest_${npc.id}`);
         }
         kb.row();
       }
-      kb.text("🔙 Назад", "main_menu");
+      kb.text("🔙 Назад", "npc");
 
       await ctx.editMessageText(
         `🧙‍♂️ <b>${npc.name}</b> — ${npc.title}
