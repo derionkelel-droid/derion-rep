@@ -1621,7 +1621,7 @@ ${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bon
         }
         await ctx.editMessageText(
           `🏪 <b>${npc.name}</b> — ${npc.title}\n━━━━━━━━━━━━━━━\n\n🪙 Твои монеты: ${player.gold}\n\nВыбери предмет для покупки:`,
-          { parse_mode: "HTML", reply_markup: shopKeyboard(shopItems.map((i) => ({ id: i.id, name: i.name, price: i.price }))) },
+          { parse_mode: "HTML", reply_markup: locationShopKeyboard(shopItems.map((i) => ({ id: i.id, name: i.name, price: i.price }))) },
         );
         return;
       }
