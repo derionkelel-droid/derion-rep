@@ -75,6 +75,7 @@ import {
   locationsKeyboard,
   combatActionSelectionKeyboard,
 } from "./keyboards";
+import { isAdmin } from "./admin";
 import { resolveRound, resolveSkillRound } from "./combat";
 
 // ─── SESSION STATE ───────────────────────────────────────────────────────────
@@ -135,8 +136,13 @@ export function registerHandlers(bot: Bot) {
       return;
     }
 
-    // Check if player is in combat — ignore text
+    // Check if player is banned
     const player = await getPlayer(telegramId);
+    if (player?.banned && !isAdmin(telegramId)) {
+      await ctx.reply("🚫 Твой персонаж забанен. Обратись к администратору.");
+      return;
+    }
+    // Check if player is in combat — ignore text
     if (player?.inCombat) {
       await ctx.reply("Ты в бою! Используй кнопки под сообщением.", {
         reply_markup: continueCombatKeyboard(),
@@ -152,6 +158,15 @@ export function registerHandlers(bot: Bot) {
 
     const data = ctx.callbackQuery.data;
     await ctx.answerCallbackQuery();
+
+    // Check if player is banned (skip for new registration)
+    if (!data.startsWith("race_") && !data.startsWith("class_")) {
+      const pl = await getPlayer(telegramId);
+      if (pl?.banned && !isAdmin(telegramId)) {
+        await ctx.reply("🚫 Твой персонаж забанен. Обратись к администратору.");
+        return;
+      }
+    }
 
     // ── RACE SELECTION ────────────────────────────────────────────────
     if (data.startsWith("race_")) {

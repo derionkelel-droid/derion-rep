@@ -96,6 +96,7 @@ export const players = pgTable("players", {
   totalDeaths: integer("total_deaths").notNull().default(0),
   inCombat: boolean("in_combat").notNull().default(false),
   combatMonsterId: integer("combat_monster_id"),
+  banned: boolean("banned").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

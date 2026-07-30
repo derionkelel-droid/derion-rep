@@ -1,6 +1,7 @@
 import { Bot } from "grammy";
 import { logger } from "../lib/logger";
 import { registerHandlers } from "./handlers";
+import { registerAdminCommands } from "./admin";
 
 let botInstance: Bot | null = null;
 
@@ -42,6 +43,7 @@ export function startBot() {
     await next();
   });
 
+  registerAdminCommands(bot);
   registerHandlers(bot);
 
   bot.catch((err) => {
