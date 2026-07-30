@@ -75,7 +75,7 @@ export function skillCombatKeyboard(skills: SkillDef[]) {
 
 export function combatActionSelectionKeyboard(skills: SkillDef[], canUse: boolean[]) {
   const kb = new InlineKeyboard()
-    .text("⚔️ Атака", "combat_attack")
+    .text("⚔️ Атака", "combat_atk_now")
     .text("🏃 Сбежать", "combat_run");
   for (let i = 0; i < skills.length; i++) {
     const s = skills[i];

@@ -326,6 +326,19 @@ export function registerHandlers(bot: Bot) {
       return;
     }
 
+    // ── NORMAL ATTACK (from action selection) ──────────────────────────
+    if (data === "combat_atk_now") {
+      const player = await getPlayer(telegramId);
+      if (!player) { await ctx.editMessageText("❌ Ошибка. Начни с /start"); return; }
+      pendingSkill.delete(telegramId);
+      pendingAttack.set(telegramId, "");
+      await ctx.editMessageText("🎯 Выбери зону <b>атаки</b>:", {
+        parse_mode: "HTML",
+        reply_markup: attackKeyboard(),
+      });
+      return;
+    }
+
     // ── SKILL SELECT ───────────────────────────────────────────────────
     if (data.startsWith("skill_")) {
       const skillId = data.replace("skill_", "");
@@ -396,7 +409,8 @@ export function registerHandlers(bot: Bot) {
           const skill = classSkills.find((s) => s.id === skillId);
           if (skill) {
             skillName = skill.name;
-            const skillDmg = calculateSkillDamage(player, equipStats.bonusAttack || 1);
+            const totalAtk = calculateAttack(player, equipStats.bonusAttack);
+            const skillDmg = calculateSkillDamage(player, totalAtk);
             result = resolveSkillRound(
               player,
               skill.skillType as SkillType,
