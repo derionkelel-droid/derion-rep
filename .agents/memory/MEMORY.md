@@ -1,4 +1,5 @@
 - [Combat persistence](combat-persistence.md) — combat state stored in DB (combat_sessions table), not in-memory; survives restarts
 - [Escape mechanic](escape-mechanic.md) — 50% flee failure = instant death, 50% success
-- [NPC types](npc-types.md) — advisor/healer/quest_giver with dynamic inline actions
+- [NPC types](npc-types.md) — advisor/healer/quest_giver/junk_buyer with dynamic inline actions
 - [Quest tracking](quest-tracking.md) — quest progress auto-incremented on monster kill via DB table
+- [Project Reference](project-reference.md) — full architecture, data model, callback convention, all tables, key patterns & gotchas
