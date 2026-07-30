@@ -1,0 +1,20 @@
+{"level":30,"time":1785443150869,"pid":70,"hostname":"srv-d9lqn9dbedkc73c3pj40-hibernate-7d4b9679c5-qh9bp","port":10000,"msg":"Server listening"}
+(node:70) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1785443150967,"pid":70,"hostname":"srv-d9lqn9dbedkc73c3pj40-hibernate-7d4b9679c5-qh9bp","req":{"id":1,"method":"HEAD","url":"/"},"res":{"statusCode":404},"responseTime":55,"msg":"request completed"}
+{"level":50,"time":1785443151113,"pid":70,"hostname":"srv-d9lqn9dbedkc73c3pj40-hibernate-7d4b9679c5-qh9bp","err":{"type":"_DrizzleQueryError","message":"Failed query: select \"id\", \"name\", \"description\", \"required_level\", \"order_index\" from \"locations\" \"locations\" limit $1\nparams: 1: self-signed certificate in certificate chain","stack":"Error: Failed query: select \"id\", \"name\", \"description\", \"required_level\", \"order_index\" from \"locations\" \"locations\" limit $1\nparams: 1\n    at NodePgPreparedQuery.queryWithCache (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/pg-core/session.ts:73:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async <anonymous> (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/node-postgres/session.ts:154:19)\n    at async seedGameData (/opt/render/project/src/artifacts/api-server/src/bot/seed.ts:14:20)\ncaused by: Error: self-signed certificate in certificate chain\n    at <anonymous> (/opt/render/project/src/node_modules/.pnpm/pg-pool@3.14.0_pg@8.22.0/node_modules/pg-pool/index.js:45:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async <anonymous> (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/node-postgres/session.ts:161:13)\n    at async NodePgPreparedQuery.queryWithCache (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/pg-core/session.ts:71:12)\n    at async <anonymous> (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/node-postgres/session.ts:154:19)\n    at async seedGameData (/opt/render/project/src/artifacts/api-server/src/bot/seed.ts:14:20)","query":"select \"id\", \"name\", \"description\", \"required_level\", \"order_index\" from \"locations\" \"locations\" limit $1","params":[1]},"msg":"Failed to seed game data or start bot"}
+{"level":30,"time":1785443152372,"pid":70,"hostname":"srv-d9lqn9dbedkc73c3pj40-hibernate-7d4b9679c5-qh9bp","msg":"Telegram bot polling started"}
+{"level":30,"time":1785443152640,"pid":70,"hostname":"srv-d9lqn9dbedkc73c3pj40-hibernate-7d4b9679c5-qh9bp","username":"grimuarMMObot","msg":"TG bot started"}
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://derion-rep.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+{"level":30,"time":1785443154588,"pid":70,"hostname":"srv-d9lqn9dbedkc73c3pj40-hibernate-7d4b9679c5-qh9bp","req":{"id":2,"method":"GET","url":"/"},"res":{"statusCode":404},"responseTime":1,"msg":"request completed"}
