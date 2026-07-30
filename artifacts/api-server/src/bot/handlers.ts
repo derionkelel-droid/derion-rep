@@ -243,7 +243,7 @@ export function registerHandlers(bot: Bot) {
         }
 
         // Create combat session in DB
-        const session = await createCombatSession(player, monster, player.currentLocationId!);
+        const session = await createCombatSession(player.id, monster, player.currentLocationId!);
 
         // Set player in combat
         await db

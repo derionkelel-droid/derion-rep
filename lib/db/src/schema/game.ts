@@ -224,3 +224,30 @@ export const quests = pgTable("quests", {
 export const insertQuestSchema = createInsertSchema(quests).omit({ id: true, createdAt: true });
 export type InsertQuest = z.infer<typeof insertQuestSchema>;
 export type Quest = typeof quests.$inferSelect;
+
+// ─── RELATIONS ─────────────────────────────────────────────────────────────
+
+import { relations } from "drizzle-orm";
+
+export const inventoryRelations = relations(inventory, ({ one }) => ({
+  item: one(equipmentItems, {
+    fields: [inventory.itemId],
+    references: [equipmentItems.id],
+  }),
+}));
+
+export const equipmentItemsRelations = relations(equipmentItems, ({ many }) => ({
+  inventoryItems: many(inventory),
+  monsterDrops: many(monsterDrops),
+}));
+
+export const monsterDropsRelations = relations(monsterDrops, ({ one }) => ({
+  monster: one(monsters, {
+    fields: [monsterDrops.monsterId],
+    references: [monsters.id],
+  }),
+  item: one(equipmentItems, {
+    fields: [monsterDrops.itemId],
+    references: [equipmentItems.id],
+  }),
+}));
