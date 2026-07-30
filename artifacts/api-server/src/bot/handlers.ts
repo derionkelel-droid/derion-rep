@@ -686,8 +686,9 @@ export function registerHandlers(bot: Bot) {
       return;
     }
 
-    if (data.startsWith("inv_")) {
+    if (data.startsWith("inv_") && !data.startsWith("inv_page_")) {
       const invId = parseInt(data.replace("inv_", ""));
+      if (isNaN(invId)) return;
       const player = await getPlayer(telegramId);
       if (!player) return;
 
@@ -742,8 +743,9 @@ ${item.description ? `📝 ${item.description}` : ""}`;
       return;
     }
 
-    if (data.startsWith("equip_")) {
+    if (data.startsWith("equip_") && !data.startsWith("equip_confirm_")) {
       const invId = parseInt(data.replace("equip_", ""));
+      if (isNaN(invId)) return;
       const player = await getPlayer(telegramId);
       if (!player) return;
 
@@ -753,7 +755,7 @@ ${item.description ? `📝 ${item.description}` : ""}`;
 
       const item = entry.item;
       if (!canEquipClass(player.class as any, item)) {
-        await ctx.answerCallbackQuery({ text: "❌ Этот предмет не подходит твоему классу!" });
+        await ctx.answerCallbackQuery({ text: "❌ Не подходит классу!" });
         return;
       }
       if (!canEquipLevel(player.level, item)) {
@@ -761,10 +763,36 @@ ${item.description ? `📝 ${item.description}` : ""}`;
         return;
       }
 
-      await equipItem(player.id, item.id);
+      const kb = new InlineKeyboard()
+        .text("✅ Надеть", `equip_confirm_${invId}`)
+        .text("🔙 Назад", `inv_${invId}`);
+
+      await ctx.editMessageText(
+        `⚔️ <b>Подтверждение экипировки</b>
+━━━━━━━━━━━━━━━
+
+Надеть <b>${item.name}</b>?
+📂 ${entry.item.slot}
+
+<i>Предмет будет экипирован в соответствующий слот.</i>`,
+        { parse_mode: "HTML", reply_markup: kb },
+      );
+      return;
+    }
+
+    if (data.startsWith("equip_confirm_")) {
+      const invId = parseInt(data.replace("equip_confirm_", ""));
+      if (isNaN(invId)) return;
+      const player = await getPlayer(telegramId);
+      if (!player) return;
+
+      const inv = await getInventory(player.id);
+      const entry = inv.find((i) => i.id === invId);
+      if (!entry || !entry.item) return;
+
+      await equipItem(player.id, entry.item.id);
       await ctx.answerCallbackQuery({ text: "✅ Предмет надет!" });
 
-      // Refresh inventory view
       const freshInv = await getInventory(player.id);
       const equippedIds = new Set([
         player.equippedWeaponId,
@@ -779,17 +807,45 @@ ${item.description ? `📝 ${item.description}` : ""}`;
         id: e.id,
         name: e.item!.name,
         slot: e.item!.slot,
-        isEquipped: equippedIds.has(e.itemId) || e.itemId === item.id,
+        isEquipped: equippedIds.has(e.itemId) || e.itemId === entry.item!.id,
       }));
 
-      await ctx.editMessageText("✅ Предмет надет! Возвращаюсь в инвентарь...", {
+      await ctx.editMessageText("✅ Предмет надет!", {
         reply_markup: inventoryKeyboard(kbItems),
       });
       return;
     }
 
-    if (data.startsWith("unequip_")) {
+    if (data.startsWith("unequip_") && !data.startsWith("unequip_confirm_")) {
       const invId = parseInt(data.replace("unequip_", ""));
+      if (isNaN(invId)) return;
+      const player = await getPlayer(telegramId);
+      if (!player) return;
+
+      const inv = await getInventory(player.id);
+      const entry = inv.find((i) => i.id === invId);
+      if (!entry || !entry.item) return;
+
+      const kb = new InlineKeyboard()
+        .text("❌ Снять", `unequip_confirm_${invId}`)
+        .text("🔙 Назад", `inv_${invId}`);
+
+      await ctx.editMessageText(
+        `📦 <b>Подтверждение</b>
+━━━━━━━━━━━━━━━
+
+Снять <b>${entry.item.name}</b>?
+📂 ${entry.item.slot}
+
+<i>Предмет вернётся в инвентарь.</i>`,
+        { parse_mode: "HTML", reply_markup: kb },
+      );
+      return;
+    }
+
+    if (data.startsWith("unequip_confirm_")) {
+      const invId = parseInt(data.replace("unequip_confirm_", ""));
+      if (isNaN(invId)) return;
       const player = await getPlayer(telegramId);
       if (!player) return;
 
@@ -850,8 +906,9 @@ ${item.description ? `📝 ${item.description}` : ""}`;
       return;
     }
 
-    if (data.startsWith("buy_")) {
+    if (data.startsWith("buy_") && !data.startsWith("buy_confirm_")) {
       const itemId = parseInt(data.replace("buy_", ""));
+      if (isNaN(itemId)) return;
       const player = await getPlayer(telegramId);
       if (!player) return;
 
@@ -866,7 +923,6 @@ ${item.description ? `📝 ${item.description}` : ""}`;
         });
         return;
       }
-
       if (player.level < item.requiredLevel) {
         await ctx.answerCallbackQuery({
           text: `❌ Требуется уровень ${item.requiredLevel}!`,
@@ -874,17 +930,57 @@ ${item.description ? `📝 ${item.description}` : ""}`;
         return;
       }
 
+      const slotName: Record<string, string> = {
+        weapon: "⚔️ Оружие", head: "🪖 Шлем", chest: "🛡️ Броня", legs: "👖 Поножи", feet: "👢 Сапоги", accessory: "💍 Аксессуар",
+      };
+
+      const kb = new InlineKeyboard()
+        .text("✅ Купить", `buy_confirm_${item.id}`)
+        .text("🔙 Назад", "shop");
+
+      await ctx.editMessageText(
+        `🏪 <b>Подтверждение покупки</b>
+━━━━━━━━━━━━━━━
+
+<b>${item.name}</b>
+📂 ${slotName[item.slot] || item.slot}
+🏷️ ${item.armorType}
+🔒 Ур. ${item.requiredLevel}
+${item.bonusAttack ? `⚔️ Атака: +${item.bonusAttack}\n` : ""}${item.bonusDefense ? `🛡️ Защита: +${item.bonusDefense}\n` : ""}${item.bonusHp ? `❤️ HP: +${item.bonusHp}\n` : ""}
+
+💰 <b>Цена: 🪙${item.price}</b>
+🪙 Твои монеты: ${player.gold}
+
+<i>Подтверди покупку?</i>`,
+        { parse_mode: "HTML", reply_markup: kb },
+      );
+      return;
+    }
+
+    if (data.startsWith("buy_confirm_")) {
+      const itemId = parseInt(data.replace("buy_confirm_", ""));
+      if (isNaN(itemId)) return;
+      const player = await getPlayer(telegramId);
+      if (!player) return;
+
+      const item = await db.query.equipmentItems.findFirst({
+        where: (eqi, { eq: op }) => op(eqi.id, itemId),
+      });
+      if (!item) return;
+
+      if (player.gold < item.price) {
+        await ctx.answerCallbackQuery({ text: "❌ Недостаточно золота!" });
+        return;
+      }
+
       await db.update(players).set({ gold: player.gold - item.price }).where(eq(players.id, player.id));
       await addItemToInventory(player.id, item.id);
-
       await ctx.answerCallbackQuery({ text: `✅ Куплено: ${item.name}!` });
 
-      // Refresh shop
       const shopItems = await db.query.equipmentItems.findMany({
         where: (eqi, { and: andOp, eq: eqOp, lte }) =>
           andOp(eqOp(eqi.isShopItem, true), lte(eqi.requiredLevel, player.level)),
       });
-
       const updatedPlayer = await getPlayer(telegramId);
       await ctx.editMessageText(
         `🏪 <b>Магазин экипировки</b>\n🪙 Твои монеты: ${updatedPlayer?.gold || 0}\n\nВыбери предмет для покупки:`,
@@ -1008,18 +1104,16 @@ ${item.description ? `📝 ${item.description}` : ""}`;
     }
 
     // ── NPC HEAL ──────────────────────────────────────────────────────
-    if (data.startsWith("npc_heal_")) {
+    if (data.startsWith("npc_heal_") && !data.startsWith("npc_heal_confirm_")) {
       try {
         const npcId = parseInt(data.replace("npc_heal_", ""));
+        if (isNaN(npcId)) return;
         const player = await getPlayer(telegramId);
         if (!player) return;
 
-        const npc = (await import("./game")).getNpcForLocation;
         const allNpcs = await db.query.npcs.findMany({ where: (n, { eq: op }) => op(n.id, npcId) });
         const healNpc = allNpcs[0];
-        if (!healNpc) return;
-
-        if (healNpc.npcType !== "healer") return;
+        if (!healNpc || healNpc.npcType !== "healer") return;
 
         const maxHp = calculateMaxHp(player);
         const missing = maxHp - player.currentHp;
@@ -1036,13 +1130,63 @@ ${item.description ? `📝 ${item.description}` : ""}`;
           return;
         }
 
+        const kb = new InlineKeyboard()
+          .text("✅ Лечиться", `npc_heal_confirm_${npcId}`)
+          .text("🔙 Отмена", "npc");
+
+        await ctx.editMessageText(
+          `❤️ <b>${healNpc.name}</b> — ${healNpc.title}
+━━━━━━━━━━━━━━━
+
+💬 <i>"Я восстановлю твои силы за монеты."</i>
+
+📊 <b>Диагноз:</b>
+❤️ ${player.currentHp}/${maxHp} HP (нужно восстановить ${missing})
+💰 Цена: 🪙${cost} (${healNpc.healCostPerHp}🪙 за 1 HP)
+🪙 Твои монеты: ${player.gold}
+
+<i>Подтверди лечение?</i>`,
+          { parse_mode: "HTML", reply_markup: kb },
+        );
+      } catch (e) {
+        logger.error({ err: e, telegramId }, "npc_heal error");
+        await ctx.answerCallbackQuery({ text: "❌ Ошибка лечения" });
+      }
+      return;
+    }
+
+    // ── NPC HEAL CONFIRM ──────────────────────────────────────────────
+    if (data.startsWith("npc_heal_confirm_")) {
+      try {
+        const npcId = parseInt(data.replace("npc_heal_confirm_", ""));
+        if (isNaN(npcId)) return;
+        const player = await getPlayer(telegramId);
+        if (!player) return;
+
+        const allNpcs = await db.query.npcs.findMany({ where: (n, { eq: op }) => op(n.id, npcId) });
+        const healNpc = allNpcs[0];
+        if (!healNpc || healNpc.npcType !== "healer") return;
+
+        const maxHp = calculateMaxHp(player);
+        const missing = maxHp - player.currentHp;
+        if (missing <= 0) {
+          await ctx.answerCallbackQuery({ text: "❤️ HP уже полное!" });
+          return;
+        }
+
+        const cost = missing * (healNpc.healCostPerHp || 3);
+        if (player.gold < cost) {
+          await ctx.answerCallbackQuery({ text: "❌ Недостаточно золота!" });
+          return;
+        }
+
         await db
           .update(players)
           .set({ currentHp: maxHp, gold: player.gold - cost })
           .where(eq(players.id, player.id));
 
         await ctx.answerCallbackQuery({
-          text: `❤️ Исцелён! -${cost}🪙 (${missing} HP восстановлено)`,
+          text: `❤️ Исцелён! -${cost}🪙`,
         });
 
         await ctx.editMessageText(
@@ -1057,7 +1201,7 @@ ${healNpc.name} восстановил твоё здоровье!
           { parse_mode: "HTML", reply_markup: mainMenuKeyboard() },
         );
       } catch (e) {
-        logger.error({ err: e, telegramId }, "npc_heal error");
+        logger.error({ err: e, telegramId }, "npc_heal confirm error");
         await ctx.answerCallbackQuery({ text: "❌ Ошибка лечения" });
       }
       return;
